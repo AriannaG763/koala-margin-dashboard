@@ -128,18 +128,18 @@
   .metric-btn { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: none; border: none; border-radius: 6px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
   .metric-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 
-  .pie-grid { display: flex; gap: 18px; flex-wrap: wrap; }
-  .pie-card { flex: 1; min-width: 230px; display: flex; align-items: center; gap: 16px; }
+  .pie-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+  .pie-card { flex: 1; min-width: 210px; display: flex; align-items: center; gap: 10px; }
   .pie-card .pie-svg-wrap { flex: none; }
   .pie-card svg { display: block; }
   .pie-card-body { flex: 1; min-width: 0; }
-  .pie-card-title { font-size: 12px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
-  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 3px 0; }
-  .legend-swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .pie-card-title { font-size: 10px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
+  .legend-row { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 2px 0; }
+  .legend-swatch { width: 7px; height: 7px; border-radius: 2px; flex: none; }
   .legend-name { flex: 1; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .legend-value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
   .legend-value.neg { color: var(--critical); }
-  .pie-empty { font-size: 12.5px; color: var(--ink-muted); }
+  .pie-empty { font-size: 11px; color: var(--ink-muted); }
 
   .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -597,7 +597,7 @@
     var entries = countryCodes.map(function (code) { return { code: code, label: LEGEND_LABELS[code] || countryName(code), value: totals[code] }; });
     var positiveTotal = entries.reduce(function (s, e) { return s + Math.max(e.value, 0); }, 0);
 
-    var size = 120, strokeW = 22, r = (size - strokeW) / 2;
+    var size = 96, strokeW = 18, r = (size - strokeW) / 2;
     var circumference = 2 * Math.PI * r;
     var cum = 0;
     var circles = '';
