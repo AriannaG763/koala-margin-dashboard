@@ -1,6 +1,6 @@
 // Aggregates the 4 Google Sheet CSV exports into the compact JSON array the dashboard
 // template needs: one row per (date, countryBucket) from 2026-01-01 onward with Revenue,
-// Budget Meta and Margine di contribuzione. Countries are grouped into IT, DE_AT, ES, FR, OTHER.
+// Budget Meta, Budget Google and Margine di contribuzione. Countries are grouped into IT, DE_AT, ES, FR, OTHER.
 // Run: node aggregate.js <sales_csv> <meta_csv> <affiliate_csv> <google_ads_csv> <out_dir>
 const fs = require('fs');
 
@@ -170,8 +170,8 @@ allKeys.forEach((k) => {
   const affiliateFee = affiliateAgg.get(k) || 0;
   const commission = s.commissionRaw * 1.1;
   const margin = s.grossProfit - s.shipping - s.packaging - commission - metaAds - googleAds - affiliateFee;
-  // Row: [date, countryBucket, revenue, budgetMeta, margin]
-  daily.push([date, bucket, round2(s.revenue), round2(metaAds), round2(margin)]);
+  // Row: [date, countryBucket, revenue, budgetMeta, budgetGoogle, margin]
+  daily.push([date, bucket, round2(s.revenue), round2(metaAds), round2(googleAds), round2(margin)]);
 });
 
 daily.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));

@@ -169,7 +169,7 @@
       <div class="mark">K</div>
       <div>
         <h1>Koalababycare - Margin Dashboard</h1>
-        <div class="sub">Revenue, Budget Meta e Margine di contribuzione per paese · valori in EUR</div>
+        <div class="sub">Revenue, Budget Meta, Budget Google e Margine di contribuzione per paese · valori in EUR</div>
       </div>
     </div>
     <div class="snapshot">
@@ -203,6 +203,7 @@
       <div class="metric-toggle" id="metricToggle">
         <button type="button" class="metric-btn active" data-metric="revenue">Revenue</button>
         <button type="button" class="metric-btn" data-metric="budgetMeta">Budget Meta</button>
+        <button type="button" class="metric-btn" data-metric="budgetGoogle">Budget Google</button>
         <button type="button" class="metric-btn" data-metric="margin">Margine di contribuzione</button>
       </div>
       <div class="metric-toggle" id="levelToggle">
@@ -237,6 +238,13 @@
         <div class="pie-card-body">
           <div class="pie-card-title">Budget Meta</div>
           <div id="legendBudgetMeta"></div>
+        </div>
+      </div>
+      <div class="pie-card">
+        <div class="pie-svg-wrap" id="pieBudgetGoogle"></div>
+        <div class="pie-card-body">
+          <div class="pie-card-title">Budget Google</div>
+          <div id="legendBudgetGoogle"></div>
         </div>
       </div>
       <div class="pie-card">
@@ -294,7 +302,7 @@
   var LEGEND_LABELS = { IT: 'Italia', DE_AT: 'DE + AT', ES: 'Spagna', FR: 'Francia', OTHER: 'Altri' };
   function countryName(code) { return COUNTRY_NAMES[code] || code; }
 
-  // Row: [date, countryBucket, revenue, budgetMeta, margin]
+  // Row: [date, countryBucket, revenue, budgetMeta, budgetGoogle, margin]
   var daily = __DAILY_JSON__;
 
   document.getElementById('genDate').textContent = '__GEN_DATE__';
@@ -302,7 +310,8 @@
   var METRICS = {
     revenue: { idx: 2, label: 'Revenue' },
     budgetMeta: { idx: 3, label: 'Budget Meta' },
-    margin: { idx: 4, label: 'Margine di contribuzione' }
+    budgetGoogle: { idx: 4, label: 'Budget Google' },
+    margin: { idx: 5, label: 'Margine di contribuzione' }
   };
 
   var DASH = { start: null, end: null, minDate: null, maxDate: null, country: 'ALL', metric: 'revenue', level: 'day' };
@@ -372,15 +381,11 @@
   }
 
   // ---------- Index data by country and by date ----------
-  var byCountry = {}; // code -> array of [date, revenue, budgetMeta, margin]
-  var countryTotals = {}; // code -> {revenue, budgetMeta, margin} over full history
+  var byCountry = {}; // code -> array of [date, revenue, budgetMeta, budgetGoogle, margin]
   daily.forEach(function (r) {
     var code = r[1];
-    if (!byCountry[code]) { byCountry[code] = []; countryTotals[code] = { revenue: 0, budgetMeta: 0, margin: 0 }; }
+    if (!byCountry[code]) { byCountry[code] = []; }
     byCountry[code].push(r);
-    countryTotals[code].revenue += r[2];
-    countryTotals[code].budgetMeta += r[3];
-    countryTotals[code].margin += r[4];
   });
   Object.keys(byCountry).forEach(function (code) {
     byCountry[code].sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
@@ -481,19 +486,20 @@
 
   // ---------- Summary cards ----------
   function renderSummary() {
-    var rev = 0, meta = 0, margin = 0;
+    var rev = 0, meta = 0, google = 0, margin = 0;
     var codes = DASH.country === 'ALL' ? countryCodes : [DASH.country];
     codes.forEach(function (code) {
       var rows = byCountry[code] || [];
       rows.forEach(function (r) {
         if (r[0] < DASH.start || r[0] > DASH.end) return;
-        rev += r[2]; meta += r[3]; margin += r[4];
+        rev += r[2]; meta += r[3]; google += r[4]; margin += r[5];
       });
     });
     var wrap = document.getElementById('summaryRow');
     wrap.innerHTML =
       '<div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value">' + fmtEUR(rev) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Budget Meta</div><div class="stat-value">' + fmtEUR(meta) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Budget Google</div><div class="stat-value">' + fmtEUR(google) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Margine di contribuzione</div><div class="stat-value' + (margin < 0 ? ' neg' : '') + '">' + fmtEUR(margin) + '</div></div>';
   }
 
@@ -627,6 +633,7 @@
   function renderPies() {
     renderDonut('pieRevenue', 'legendRevenue', METRICS.revenue.idx);
     renderDonut('pieBudgetMeta', 'legendBudgetMeta', METRICS.budgetMeta.idx);
+    renderDonut('pieBudgetGoogle', 'legendBudgetGoogle', METRICS.budgetGoogle.idx);
     renderDonut('pieMargin', 'legendMargin', METRICS.margin.idx);
   }
 
