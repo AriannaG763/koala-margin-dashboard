@@ -205,6 +205,11 @@
         <button type="button" class="metric-btn" data-metric="budgetMeta">Budget Meta</button>
         <button type="button" class="metric-btn" data-metric="margin">Margine di contribuzione</button>
       </div>
+      <div class="metric-toggle" id="levelToggle">
+        <button type="button" class="metric-btn active" data-level="day">Giornaliero</button>
+        <button type="button" class="metric-btn" data-level="week">Settimanale</button>
+        <button type="button" class="metric-btn" data-level="month">Mensile</button>
+      </div>
     </div>
   </div>
 
@@ -248,7 +253,7 @@
     <div class="panel-head">
       <div>
         <div class="panel-title" id="tableTitle">Revenue giornaliera per paese</div>
-        <div class="panel-note">Riga "Totale" = somma di tutti i paesi per quel giorno · colonna "Totale periodo" = somma sul periodo selezionato</div>
+        <div class="panel-note" id="tableNote">Riga "Totale" = somma di tutti i paesi per quel giorno · colonna "Totale periodo" = somma sul periodo selezionato</div>
       </div>
       <div class="panel-note" id="tableCount"></div>
     </div>
@@ -300,7 +305,12 @@
     margin: { idx: 4, label: 'Margine di contribuzione' }
   };
 
-  var DASH = { start: null, end: null, minDate: null, maxDate: null, country: 'ALL', metric: 'revenue' };
+  var DASH = { start: null, end: null, minDate: null, maxDate: null, country: 'ALL', metric: 'revenue', level: 'day' };
+  var LEVEL_UNIT_SINGULAR = { day: 'giorno', week: 'settimana', month: 'mese' };
+  var LEVEL_UNIT_PLURAL = { day: 'giorni', week: 'settimane', month: 'mesi' };
+  var LEVEL_DEMONSTRATIVE = { day: 'quel giorno', week: 'quella settimana', month: 'quel mese' };
+  var LEVEL_ADJECTIVE = { day: 'giornaliera', week: 'settimanale', month: 'mensile' };
+  var MONTHS_IT_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 
   function addDaysStr(dateStr, delta) {
     var d = new Date(dateStr + 'T00:00:00Z');
@@ -326,6 +336,39 @@
   function fmtShortDate(dateStr) {
     var d = new Date(dateStr + 'T00:00:00Z');
     return d.getUTCDate() + '/' + (d.getUTCMonth() + 1);
+  }
+
+  // ---------- Day/week/month bucketing helpers ----------
+  function startOfWeekStr(dateStr) {
+    var d = new Date(dateStr + 'T00:00:00Z');
+    var day = d.getUTCDay();
+    var diff = day === 0 ? -6 : 1 - day; // ISO week starts on Monday
+    d.setUTCDate(d.getUTCDate() + diff);
+    return d.toISOString().slice(0, 10);
+  }
+  function monthKeyStr(dateStr) { return dateStr.slice(0, 7); }
+  function bucketKeyFor(dateStr, level) {
+    if (level === 'week') return startOfWeekStr(dateStr);
+    if (level === 'month') return monthKeyStr(dateStr);
+    return dateStr;
+  }
+  function bucketRangeList(start, end, level) {
+    if (level === 'day') return dateRangeList(start, end);
+    if (level === 'week') {
+      var out = [], cur = startOfWeekStr(start), endWeek = startOfWeekStr(end), guard = 0;
+      while (cur <= endWeek && guard < 2000) { out.push(cur); cur = addDaysStr(cur, 7); guard++; }
+      return out;
+    }
+    var out2 = [], curM = monthKeyStr(start), endM = monthKeyStr(end), guard2 = 0;
+    while (curM <= endM && guard2 < 2000) { out2.push(curM); curM = addMonthsStr(curM + '-01', 1).slice(0, 7); guard2++; }
+    return out2;
+  }
+  function bucketLabel(bucketKeyValue, level) {
+    if (level === 'month') {
+      var parts = bucketKeyValue.split('-');
+      return MONTHS_IT_SHORT[parseInt(parts[1], 10) - 1] + ' ' + parts[0];
+    }
+    return fmtShortDate(bucketKeyValue);
   }
 
   // ---------- Index data by country and by date ----------
@@ -370,6 +413,19 @@
         btns.forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
         DASH.metric = btn.getAttribute('data-metric');
+        renderAll();
+      });
+    });
+  })();
+
+  // ---------- Level toggle (day/week/month) ----------
+  (function () {
+    var btns = Array.prototype.slice.call(document.querySelectorAll('#levelToggle .metric-btn'));
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btns.forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        DASH.level = btn.getAttribute('data-level');
         renderAll();
       });
     });
@@ -424,7 +480,7 @@
   })();
 
   // ---------- Summary cards ----------
-  function renderSummary(dates) {
+  function renderSummary() {
     var rev = 0, meta = 0, margin = 0;
     var codes = DASH.country === 'ALL' ? countryCodes : [DASH.country];
     codes.forEach(function (code) {
@@ -451,16 +507,19 @@
     return '<td class="' + cls + '">' + fmtEUR(val) + '</td>';
   }
 
-  function renderTable(dates) {
+  function renderTable() {
     var metricIdx = METRICS[DASH.metric].idx;
-    document.getElementById('tableTitle').textContent = METRICS[DASH.metric].label + ' giornaliera per paese';
+    var level = DASH.level;
+    var buckets = bucketRangeList(DASH.start, DASH.end, level);
+    document.getElementById('tableTitle').textContent = METRICS[DASH.metric].label + ' ' + LEVEL_ADJECTIVE[level] + ' per paese';
+    document.getElementById('tableNote').textContent = 'Riga "Totale" = somma di tutti i paesi per ' + LEVEL_DEMONSTRATIVE[level] + ' · colonna "Totale periodo" = somma sul periodo selezionato';
 
     var headRow = document.getElementById('mainHeadRow');
     Array.prototype.slice.call(headRow.querySelectorAll('.date-col, .total-col')).forEach(function (th) { th.remove(); });
-    dates.forEach(function (d) {
+    buckets.forEach(function (b) {
       var th = document.createElement('th');
       th.className = 'date-col';
-      th.textContent = fmtShortDate(d);
+      th.textContent = bucketLabel(b, level);
       headRow.appendChild(th);
     });
     var thTotal = document.createElement('th');
@@ -475,32 +534,36 @@
       return (byCountry[code] || []).some(function (r) { return r[0] >= DASH.start && r[0] <= DASH.end && r[metricIdx] !== 0; });
     });
 
-    var byDatePerCountry = {};
+    var byBucketPerCountry = {};
     visibleCodes.forEach(function (code) {
-      var byDate = {};
-      (byCountry[code] || []).forEach(function (r) { byDate[r[0]] = r[metricIdx]; });
-      byDatePerCountry[code] = byDate;
+      var byBucket = {};
+      (byCountry[code] || []).forEach(function (r) {
+        if (r[0] < DASH.start || r[0] > DASH.end) return;
+        var k = bucketKeyFor(r[0], level);
+        byBucket[k] = (byBucket[k] || 0) + r[metricIdx];
+      });
+      byBucketPerCountry[code] = byBucket;
     });
 
-    var totalsByDate = {};
-    dates.forEach(function (d) { totalsByDate[d] = 0; });
+    var totalsByBucket = {};
+    buckets.forEach(function (b) { totalsByBucket[b] = 0; });
     visibleCodes.forEach(function (code) {
-      dates.forEach(function (d) { totalsByDate[d] += (byDatePerCountry[code][d] || 0); });
+      buckets.forEach(function (b) { totalsByBucket[b] += (byBucketPerCountry[code][b] || 0); });
     });
 
     var html = '';
     // Pinned "Totale" row.
     html += '<tr class="row-total"><td class="name-col">Totale</td>';
     var periodTotal = 0;
-    dates.forEach(function (d) { html += cellHtml(totalsByDate[d]); periodTotal += totalsByDate[d]; });
+    buckets.forEach(function (b) { html += cellHtml(totalsByBucket[b]); periodTotal += totalsByBucket[b]; });
     html += totalCellHtml(periodTotal);
     html += '</tr>';
 
     visibleCodes.forEach(function (code) {
       html += '<tr class="row-country"><td class="name-col">' + countryName(code) + '</td>';
       var rowTotal = 0;
-      dates.forEach(function (d) {
-        var v = byDatePerCountry[code][d] || 0;
+      buckets.forEach(function (b) {
+        var v = byBucketPerCountry[code][b] || 0;
         html += cellHtml(v);
         rowTotal += v;
       });
@@ -509,7 +572,7 @@
     });
 
     document.getElementById('mainBody').innerHTML = html;
-    document.getElementById('tableCount').textContent = visibleCodes.length + ' paesi · ' + dates.length + ' giorni';
+    document.getElementById('tableCount').textContent = visibleCodes.length + ' paesi · ' + buckets.length + ' ' + LEVEL_UNIT_PLURAL[level];
   }
 
   // ---------- Pie (donut) charts: country breakdown, one per metric, always all countries ----------
@@ -568,10 +631,9 @@
   }
 
   function renderAll() {
-    var dates = dateRangeList(DASH.start, DASH.end);
-    renderSummary(dates);
+    renderSummary();
     renderPies();
-    renderTable(dates);
+    renderTable();
   }
 
   renderAll();
