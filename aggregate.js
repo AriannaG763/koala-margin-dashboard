@@ -67,7 +67,13 @@ function isoFromMDY(s) {
 }
 
 function isoFromDMY(s) {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s).trim());
+  s = String(s).trim();
+  // "Influencer Affiliate" has a mixed date column: older rows are "DD/MM/YYYY" text,
+  // but the most recent rows (as new orders come in) are already "YYYY-MM-DD" -
+  // handle both, or recent days silently lose all their affiliate cost.
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (iso) return s;
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
   if (!m) return null;
   return m[3] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
 }
