@@ -1,0 +1,467 @@
+<meta charset="utf-8">
+<title>Koalababycare - Margin Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --paper:      #f8f7f4;
+    --surface:    #ffffff;
+    --border:     rgba(20,22,20,0.09);
+    --ink:        #16181a;
+    --ink-2:      #565a54;
+    --ink-muted:  #8a8d86;
+    --accent:     #3c6e71;
+    --accent-ink: #ffffff;
+    --accent-wash:#e4eeed;
+    --good:      #0ca30c;
+    --good-wash: #e5f6e1;
+    --warning:   #b9790a;
+    --warning-wash: #fdf1d9;
+    --critical:  #d03b3b;
+    --critical-wash: #fbe7e5;
+    --grid:      #e6e4de;
+    --shadow: 0 1px 2px rgba(20,22,20,0.04), 0 8px 24px -12px rgba(20,22,20,0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --paper:      #101112;
+      --surface:    #17181a;
+      --border:     rgba(255,255,255,0.09);
+      --ink:        #f3f3f1;
+      --ink-2:      #bcbdb6;
+      --ink-muted:  #85877f;
+      --accent:     #6bb0ac;
+      --accent-ink: #0d1413;
+      --accent-wash:#1a2827;
+      --good:      #33c733;
+      --good-wash: #12261a;
+      --warning:   #e0a530;
+      --warning-wash: #2a2213;
+      --critical:  #e66767;
+      --critical-wash: #2c1717;
+      --grid:      #26272a;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper:      #101112;
+    --surface:    #17181a;
+    --border:     rgba(255,255,255,0.09);
+    --ink:        #f3f3f1;
+    --ink-2:      #bcbdb6;
+    --ink-muted:  #85877f;
+    --accent:     #6bb0ac;
+    --accent-ink: #0d1413;
+    --accent-wash:#1a2827;
+    --good:      #33c733;
+    --good-wash: #12261a;
+    --warning:   #e0a530;
+    --warning-wash: #2a2213;
+    --critical:  #e66767;
+    --critical-wash: #2c1717;
+    --grid:      #26272a;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 28px 20px 64px;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+
+  .masthead { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; padding-bottom: 4px; }
+  .masthead .id { display: flex; align-items: center; gap: 12px; }
+  .mark { width: 40px; height: 40px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; flex: none; }
+  h1 { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  .sub { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+  .snapshot { text-align: right; font-size: 12.5px; color: var(--ink-muted); line-height: 1.5; }
+  .snapshot strong { color: var(--ink-2); font-weight: 600; }
+  .live-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background: var(--good); margin-right: 5px; box-shadow: 0 0 0 2px var(--good-wash); }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 18px 20px 16px; }
+  .panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  .panel-title { font-size: 14.5px; font-weight: 700; }
+  .panel-note { font-size: 12px; color: var(--ink-muted); }
+
+  .summary-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .stat-card { flex: 1; min-width: 160px; background: var(--paper); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; }
+  .stat-card .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 600; }
+  .stat-card .stat-value { font-size: 20px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat-card .stat-value.neg { color: var(--critical); }
+
+  .date-range-panel { padding: 16px 20px; }
+  .date-range-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 12px; }
+  .date-range-row:last-child { margin-bottom: 0; }
+  .date-field { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--ink-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .date-field input[type="date"] { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; text-transform: none; letter-spacing: normal; font-weight: 400; }
+  .date-range-summary { font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .date-range-presets { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ghost-btn { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  .ghost-btn:hover { color: var(--ink); border-color: var(--ink-muted); }
+  .ghost-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .cat-select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; min-width: 170px; }
+  .cat-select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  .metric-toggle { display: flex; gap: 4px; background: var(--paper); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+  .metric-btn { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: none; border: none; border-radius: 6px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+  .metric-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 600; padding: 0 10px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+
+  #mainTable th.name-col, #mainTable td.name-col { position: sticky; left: 0; z-index: 2; background: var(--surface); text-align: left; }
+  #mainTable tr.row-total td.name-col, #mainTable tr.row-total th.name-col { background: var(--paper); }
+  #mainTable tr.row-total { background: var(--paper); font-weight: 700; }
+  #mainTable tr.row-total td { border-bottom: 2px solid var(--border); }
+  #mainTable tr.row-country:hover { background: var(--accent-wash); }
+  #mainTable tr.row-country:hover td.name-col { background: var(--accent-wash); }
+  #mainTable td.date-col, #mainTable th.date-col { text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; padding: 8px 10px; }
+  #mainTable td.date-col.neg, #mainTable th.date-col.neg { color: var(--critical); }
+  #mainTable td.total-col, #mainTable th.total-col { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; border-left: 1px solid var(--border); background: var(--paper); }
+  #mainTable td.total-col.neg { color: var(--critical); }
+
+  footer { font-size: 12px; color: var(--ink-muted); text-align: center; padding-top: 8px; line-height: 1.7; }
+  footer a { text-decoration: underline; text-underline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="id">
+      <div class="mark">K</div>
+      <div>
+        <h1>Koalababycare - Margin Dashboard</h1>
+        <div class="sub">Revenue, Budget Meta e Margine di contribuzione per paese · valori in EUR</div>
+      </div>
+    </div>
+    <div class="snapshot">
+      <div><span class="live-dot"></span>Istantanea generata il <strong id="genDate">—</strong></div>
+      <div>I dati si aggiornano automaticamente una volta al giorno</div>
+    </div>
+  </div>
+
+  <div class="panel date-range-panel">
+    <div class="date-range-row">
+      <label class="date-field">Dal <input type="date" id="dateFrom"></label>
+      <label class="date-field">Al <input type="date" id="dateTo"></label>
+      <span class="date-range-summary" id="dateRangeSummary"></span>
+    </div>
+    <div class="date-range-presets">
+      <button type="button" class="ghost-btn" data-preset="last7">Ultimi 7 giorni</button>
+      <button type="button" class="ghost-btn" data-preset="last14">Ultimi 14 giorni</button>
+      <button type="button" class="ghost-btn" data-preset="last30">Ultimi 30 giorni</button>
+      <button type="button" class="ghost-btn" data-preset="mtd">Da inizio mese</button>
+      <button type="button" class="ghost-btn" data-preset="last3m">Ultimi 3 mesi</button>
+      <button type="button" class="ghost-btn" data-preset="ytd">Da inizio anno (2026)</button>
+      <button type="button" class="ghost-btn" data-preset="all">Tutto il periodo</button>
+    </div>
+    <div class="date-range-row">
+      <label class="date-field">Paese
+        <select id="countrySelect" class="cat-select">
+          <option value="ALL">Tutti i paesi</option>
+        </select>
+      </label>
+      <div class="metric-toggle" id="metricToggle">
+        <button type="button" class="metric-btn active" data-metric="revenue">Revenue</button>
+        <button type="button" class="metric-btn" data-metric="budgetMeta">Budget Meta</button>
+        <button type="button" class="metric-btn" data-metric="margin">Margine di contribuzione</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="summary-row" id="summaryRow"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title" id="tableTitle">Revenue giornaliera per paese</div>
+        <div class="panel-note">Riga "Totale" = somma di tutti i paesi per quel giorno · colonna "Totale periodo" = somma sul periodo selezionato</div>
+      </div>
+      <div class="panel-note" id="tableCount"></div>
+    </div>
+    <div class="table-scroll">
+      <table id="mainTable">
+        <thead>
+          <tr id="mainHeadRow">
+            <th class="name-col">Paese</th>
+          </tr>
+        </thead>
+        <tbody id="mainBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    Fonti: foglio "Shopify_Daily_Sales_By_Country" (Revenue, Gross Profit, Shipping, Packaging, Commission Fee) ·
+    foglio "Dati Meta" (Budget/Meta Ads) · foglio "Influencer Affiliate" (Affiliate Cost) · foglio Google Ads (Cost).<br>
+    Margine di contribuzione = Gross Profit − Shipping − Packaging − (Commission Fee × 1,1) − Meta Ads − Google Ads − Affiliate Cost.<br>
+    Dati aggregati automaticamente una volta al giorno.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var fmtEUR = function (n, decimals) {
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: decimals === undefined ? 0 : decimals, maximumFractionDigits: decimals === undefined ? 0 : decimals }).format(n);
+  };
+  var fmtInt = function (n) { return new Intl.NumberFormat('it-IT').format(n); };
+
+  var COUNTRY_NAMES = {
+    AT: 'Austria', AU: 'Australia', BE: 'Belgio', BG: 'Bulgaria', CA: 'Canada', CH: 'Svizzera',
+    CZ: 'Rep. Ceca', DE: 'Germania', DK: 'Danimarca', EE: 'Estonia', ES: 'Spagna', FI: 'Finlandia',
+    FR: 'Francia', GR: 'Grecia', HR: 'Croazia', HU: 'Ungheria', IE: 'Irlanda', IT: 'Italia',
+    LT: 'Lituania', LU: 'Lussemburgo', LV: 'Lettonia', MQ: 'Martinica', NL: 'Paesi Bassi',
+    NO: 'Norvegia', PL: 'Polonia', PT: 'Portogallo', QA: 'Qatar', RE: 'Reunion', RO: 'Romania',
+    SA: 'Arabia Saudita', SE: 'Svezia', SI: 'Slovenia', SK: 'Slovacchia', SM: 'San Marino',
+    TR: 'Turchia', UK: 'Regno Unito', US: 'Stati Uniti', ND: 'Non specificato'
+  };
+  function countryName(code) { return COUNTRY_NAMES[code] || code; }
+
+  // Row: [date, countryCode, revenue, budgetMeta, margin]
+  var daily = __DAILY_JSON__;
+
+  document.getElementById('genDate').textContent = '__GEN_DATE__';
+
+  var METRICS = {
+    revenue: { idx: 2, label: 'Revenue' },
+    budgetMeta: { idx: 3, label: 'Budget Meta' },
+    margin: { idx: 4, label: 'Margine di contribuzione' }
+  };
+
+  var DASH = { start: null, end: null, minDate: null, maxDate: null, country: 'ALL', metric: 'revenue' };
+
+  function addDaysStr(dateStr, delta) {
+    var d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + delta);
+    return d.toISOString().slice(0, 10);
+  }
+  function addMonthsStr(dateStr, delta) {
+    var d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCMonth(d.getUTCMonth() + delta);
+    return d.toISOString().slice(0, 10);
+  }
+  function startOfMonthStr(dateStr) { return dateStr.slice(0, 7) + '-01'; }
+  function startOfYearStr(dateStr) { return dateStr.slice(0, 4) + '-01-01'; }
+  function dateRangeList(start, end) {
+    var out = [], cur = start, guard = 0;
+    while (cur <= end && guard < 5000) { out.push(cur); cur = addDaysStr(cur, 1); guard++; }
+    return out;
+  }
+  function fmtItDate(dateStr) {
+    var d = new Date(dateStr + 'T00:00:00Z');
+    return String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0') + '/' + d.getUTCFullYear();
+  }
+  function fmtShortDate(dateStr) {
+    var d = new Date(dateStr + 'T00:00:00Z');
+    return d.getUTCDate() + '/' + (d.getUTCMonth() + 1);
+  }
+
+  // ---------- Index data by country and by date ----------
+  var byCountry = {}; // code -> array of [date, revenue, budgetMeta, margin]
+  var countryTotals = {}; // code -> {revenue, budgetMeta, margin} over full history
+  daily.forEach(function (r) {
+    var code = r[1];
+    if (!byCountry[code]) { byCountry[code] = []; countryTotals[code] = { revenue: 0, budgetMeta: 0, margin: 0 }; }
+    byCountry[code].push(r);
+    countryTotals[code].revenue += r[2];
+    countryTotals[code].budgetMeta += r[3];
+    countryTotals[code].margin += r[4];
+  });
+  Object.keys(byCountry).forEach(function (code) {
+    byCountry[code].sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
+  });
+  var countryCodes = Object.keys(byCountry).sort(function (a, b) { return countryTotals[b].revenue - countryTotals[a].revenue; });
+
+  var seenDates = {};
+  daily.forEach(function (r) { seenDates[r[0]] = true; });
+  var sortedDates = Object.keys(seenDates).sort();
+  DASH.minDate = sortedDates[0];
+  DASH.maxDate = sortedDates[sortedDates.length - 1];
+
+  // ---------- Populate country select ----------
+  (function () {
+    var sel = document.getElementById('countrySelect');
+    countryCodes.forEach(function (code) {
+      var opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = countryName(code);
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', function () { DASH.country = sel.value; renderAll(); });
+  })();
+
+  // ---------- Metric toggle ----------
+  (function () {
+    var btns = Array.prototype.slice.call(document.querySelectorAll('#metricToggle .metric-btn'));
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btns.forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        DASH.metric = btn.getAttribute('data-metric');
+        renderAll();
+      });
+    });
+  })();
+
+  // ---------- Date range picker ----------
+  (function () {
+    var fromInput = document.getElementById('dateFrom');
+    var toInput = document.getElementById('dateTo');
+    var summary = document.getElementById('dateRangeSummary');
+    var presetBtns = Array.prototype.slice.call(document.querySelectorAll('.date-range-presets .ghost-btn'));
+
+    fromInput.min = toInput.min = DASH.minDate;
+    fromInput.max = toInput.max = DASH.maxDate;
+
+    function updateSummary() {
+      var days = Math.round((new Date(DASH.end + 'T00:00:00Z') - new Date(DASH.start + 'T00:00:00Z')) / 86400000) + 1;
+      summary.textContent = fmtItDate(DASH.start) + ' → ' + fmtItDate(DASH.end) + ' (' + days + ' giorni)';
+    }
+
+    function setRange(start, end, presetName) {
+      if (start < DASH.minDate) start = DASH.minDate;
+      if (end > DASH.maxDate) end = DASH.maxDate;
+      DASH.start = start; DASH.end = end;
+      fromInput.value = start; toInput.value = end;
+      presetBtns.forEach(function (b) { b.classList.toggle('active', presetName !== null && b.getAttribute('data-preset') === presetName); });
+      updateSummary();
+      renderAll();
+    }
+
+    function presetRange(name) {
+      var max = DASH.maxDate, min = DASH.minDate, s;
+      if (name === 'last7') s = addDaysStr(max, -6);
+      else if (name === 'last14') s = addDaysStr(max, -13);
+      else if (name === 'last30') s = addDaysStr(max, -29);
+      else if (name === 'mtd') s = startOfMonthStr(max);
+      else if (name === 'last3m') s = addMonthsStr(max, -3);
+      else if (name === 'ytd') s = startOfYearStr(max);
+      else s = min; // 'all'
+      if (s < min) s = min;
+      setRange(s, max, name);
+    }
+
+    presetBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () { presetRange(btn.getAttribute('data-preset')); });
+    });
+    fromInput.addEventListener('change', function () { if (fromInput.value) setRange(fromInput.value, toInput.value || DASH.end, null); });
+    toInput.addEventListener('change', function () { if (toInput.value) setRange(fromInput.value || DASH.start, toInput.value, null); });
+
+    presetRange('last30');
+  })();
+
+  // ---------- Summary cards ----------
+  function renderSummary(dates) {
+    var rev = 0, meta = 0, margin = 0;
+    var codes = DASH.country === 'ALL' ? countryCodes : [DASH.country];
+    codes.forEach(function (code) {
+      var rows = byCountry[code] || [];
+      rows.forEach(function (r) {
+        if (r[0] < DASH.start || r[0] > DASH.end) return;
+        rev += r[2]; meta += r[3]; margin += r[4];
+      });
+    });
+    var wrap = document.getElementById('summaryRow');
+    wrap.innerHTML =
+      '<div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value">' + fmtEUR(rev) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Budget Meta</div><div class="stat-value">' + fmtEUR(meta) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Margine di contribuzione</div><div class="stat-value' + (margin < 0 ? ' neg' : '') + '">' + fmtEUR(margin) + '</div></div>';
+  }
+
+  // ---------- Main table ----------
+  function cellHtml(val) {
+    var cls = 'date-col' + (val < 0 ? ' neg' : '');
+    return '<td class="' + cls + '">' + fmtEUR(val) + '</td>';
+  }
+  function totalCellHtml(val) {
+    var cls = 'total-col' + (val < 0 ? ' neg' : '');
+    return '<td class="' + cls + '">' + fmtEUR(val) + '</td>';
+  }
+
+  function renderTable(dates) {
+    var metricIdx = METRICS[DASH.metric].idx;
+    document.getElementById('tableTitle').textContent = METRICS[DASH.metric].label + ' giornaliera per paese';
+
+    var headRow = document.getElementById('mainHeadRow');
+    Array.prototype.slice.call(headRow.querySelectorAll('.date-col, .total-col')).forEach(function (th) { th.remove(); });
+    dates.forEach(function (d) {
+      var th = document.createElement('th');
+      th.className = 'date-col';
+      th.textContent = fmtShortDate(d);
+      headRow.appendChild(th);
+    });
+    var thTotal = document.createElement('th');
+    thTotal.className = 'total-col';
+    thTotal.textContent = 'Totale periodo';
+    headRow.appendChild(thTotal);
+
+    var codes = DASH.country === 'ALL' ? countryCodes : [DASH.country];
+    // Only show countries with at least one non-zero value in the visible range (keeps rows relevant to the period).
+    var visibleCodes = codes.filter(function (code) {
+      return (byCountry[code] || []).some(function (r) { return r[0] >= DASH.start && r[0] <= DASH.end && r[metricIdx] !== 0; });
+    });
+    visibleCodes.sort(function (a, b) {
+      var ta = 0, tb = 0;
+      (byCountry[a] || []).forEach(function (r) { if (r[0] >= DASH.start && r[0] <= DASH.end) ta += r[metricIdx]; });
+      (byCountry[b] || []).forEach(function (r) { if (r[0] >= DASH.start && r[0] <= DASH.end) tb += r[metricIdx]; });
+      return tb - ta;
+    });
+
+    var byDatePerCountry = {};
+    visibleCodes.forEach(function (code) {
+      var byDate = {};
+      (byCountry[code] || []).forEach(function (r) { byDate[r[0]] = r[metricIdx]; });
+      byDatePerCountry[code] = byDate;
+    });
+
+    var totalsByDate = {};
+    dates.forEach(function (d) { totalsByDate[d] = 0; });
+    visibleCodes.forEach(function (code) {
+      dates.forEach(function (d) { totalsByDate[d] += (byDatePerCountry[code][d] || 0); });
+    });
+
+    var html = '';
+    // Pinned "Totale" row.
+    html += '<tr class="row-total"><td class="name-col">Totale</td>';
+    var periodTotal = 0;
+    dates.forEach(function (d) { html += cellHtml(totalsByDate[d]); periodTotal += totalsByDate[d]; });
+    html += totalCellHtml(periodTotal);
+    html += '</tr>';
+
+    visibleCodes.forEach(function (code) {
+      html += '<tr class="row-country"><td class="name-col">' + countryName(code) + '</td>';
+      var rowTotal = 0;
+      dates.forEach(function (d) {
+        var v = byDatePerCountry[code][d] || 0;
+        html += cellHtml(v);
+        rowTotal += v;
+      });
+      html += totalCellHtml(rowTotal);
+      html += '</tr>';
+    });
+
+    document.getElementById('mainBody').innerHTML = html;
+    document.getElementById('tableCount').textContent = visibleCodes.length + ' paesi · ' + dates.length + ' giorni';
+  }
+
+  function renderAll() {
+    var dates = dateRangeList(DASH.start, DASH.end);
+    renderSummary(dates);
+    renderTable(dates);
+  }
+
+  renderAll();
+})();
+</script>

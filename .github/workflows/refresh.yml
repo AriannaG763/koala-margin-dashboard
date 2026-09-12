@@ -1,0 +1,63 @@
+name: Refresh dashboard
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard-deploy
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch fresh data
+        run: |
+          curl -sS -f -L "https://docs.google.com/spreadsheets/d/1p2uWBej0f8dD3QjRzOZ963aJnLY55kDMDTrKpVq175U/gviz/tq?tqx=out:csv&sheet=Shopify_Daily_Sales_By_Country" -o sales.csv
+          curl -sS -f -L "https://docs.google.com/spreadsheets/d/1-yh66Yj4PVBH3nFpHnUnTFv1lIoB8rMzsJ9sy9WRjno/gviz/tq?tqx=out:csv&sheet=Dati%20Meta" -o meta.csv
+          curl -sS -f -L "https://docs.google.com/spreadsheets/d/1p2uWBej0f8dD3QjRzOZ963aJnLY55kDMDTrKpVq175U/gviz/tq?tqx=out:csv&sheet=Influencer%20Affiliate" -o affiliate.csv
+          curl -sS -f -L "https://docs.google.com/spreadsheets/d/1XOjCFziIR78KZLE1g6Ct8OPIZ3Zj5giQ5Xi49B84CAM/gviz/tq?tqx=out:csv&sheet=Sheet1" -o gads.csv
+          wc -l sales.csv meta.csv affiliate.csv gads.csv
+          head -1 sales.csv meta.csv affiliate.csv gads.csv
+
+      - name: Aggregate
+        run: node aggregate.js sales.csv meta.csv affiliate.csv gads.csv .
+
+      - name: Build
+        run: python3 build.py .
+
+      - name: Validate
+        run: |
+          python3 -c "
+          import re
+          with open('koala-margin-dashboard.html') as f:
+              html = f.read()
+          assert '__DAILY_JSON__' not in html
+          assert '__GEN_DATE__' not in html
+          m = re.search(r'<script>(.*)</script>', html, re.S)
+          with open('extracted.js', 'w') as out:
+              out.write(m.group(1))
+          "
+          node --check extracted.js
+
+      - name: Prepare Pages output
+        run: |
+          mkdir -p _site
+          cp koala-margin-dashboard.html _site/index.html
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy _site --project-name=koala-margin-dashboard --branch=main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
