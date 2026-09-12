@@ -8,6 +8,10 @@ const [, , salesCsvPath, metaCsvPath, affiliateCsvPath, googleAdsCsvPath, outDir
 
 const START_DATE = '2026-01-01';
 
+// Exclude today (Europe/Rome calendar date): today's sales are still coming in when the
+// dashboard refreshes, so the last complete day shown is always yesterday.
+const TODAY_ROME = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
 function parseCsv(text) {
   // Full-text CSV parser (handles quoted fields with embedded commas AND embedded
   // newlines, e.g. ad names copy-pasted from Instagram captions in "Dati Meta").
@@ -87,7 +91,7 @@ const salesAgg = new Map();
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     const date = r[0];
-    if (!date || date < START_DATE) continue;
+    if (!date || date < START_DATE || date >= TODAY_ROME) continue;
     const code = r[2] || 'ND';
     const k = keyOf(date, code);
     let e = salesAgg.get(k);
@@ -108,7 +112,7 @@ const metaAgg = new Map();
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     const iso = isoFromMDY(r[2]);
-    if (!iso || iso < START_DATE) continue;
+    if (!iso || iso < START_DATE || iso >= TODAY_ROME) continue;
     const code = (r[1] && r[1] !== 'unknown') ? r[1] : 'ND';
     const k = keyOf(iso, code);
     metaAgg.set(k, (metaAgg.get(k) || 0) + parseNumUs(r[3]));
@@ -123,7 +127,7 @@ const affiliateAgg = new Map();
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     const iso = isoFromDMY(r[0]);
-    if (!iso || iso < START_DATE) continue;
+    if (!iso || iso < START_DATE || iso >= TODAY_ROME) continue;
     const code = r[3] || 'ND';
     const k = keyOf(iso, code);
     affiliateAgg.set(k, (affiliateAgg.get(k) || 0) + parseNumEu(r[6]));
@@ -138,7 +142,7 @@ const googleAdsAgg = new Map();
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     const iso = isoFromMDY(r[0]);
-    if (!iso || iso < START_DATE) continue;
+    if (!iso || iso < START_DATE || iso >= TODAY_ROME) continue;
     const code = r[1] || 'ND';
     const k = keyOf(iso, code);
     googleAdsAgg.set(k, (googleAdsAgg.get(k) || 0) + parseNumUs(r[2]));
