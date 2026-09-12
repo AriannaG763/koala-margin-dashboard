@@ -1,6 +1,6 @@
 // Aggregates the 4 Google Sheet CSV exports into the compact JSON array the dashboard
-// template needs: one row per (date, country) from 2026-01-01 onward with Revenue,
-// Budget Meta and Margine di contribuzione.
+// template needs: one row per (date, countryBucket) from 2026-01-01 onward with Revenue,
+// Budget Meta and Margine di contribuzione. Countries are grouped into IT, DE_AT, ES, FR, OTHER.
 // Run: node aggregate.js <sales_csv> <meta_csv> <affiliate_csv> <google_ads_csv> <out_dir>
 const fs = require('fs');
 
@@ -68,7 +68,15 @@ function isoFromDMY(s) {
   return m[3] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
 }
 
-function keyOf(date, code) { return date + '|' + (code || 'ND'); }
+function countryBucket(code) {
+  if (code === 'IT') return 'IT';
+  if (code === 'DE' || code === 'AT') return 'DE_AT';
+  if (code === 'ES') return 'ES';
+  if (code === 'FR') return 'FR';
+  return 'OTHER';
+}
+
+function keyOf(date, code) { return date + '|' + countryBucket(code); }
 
 // ---------- Sales sheet: "Shopify_Daily_Sales_By_Country" ----------
 // Columns used (0-indexed): P=15 Revenue, Q=16 Gross Profit, N=13 Shipping Cost,
@@ -137,22 +145,23 @@ const googleAdsAgg = new Map();
   }
 }
 
-// ---------- Merge (union of every (date,country) key seen in any source) ----------
+// ---------- Merge (union of every (date,bucket) key seen in any source) ----------
+// Country bucket: IT, DE_AT (Germany + Austria merged), ES, FR kept separate; everything else -> OTHER.
 const allKeys = new Set([...salesAgg.keys(), ...metaAgg.keys(), ...affiliateAgg.keys(), ...googleAdsAgg.keys()]);
 
 function round2(n) { return Math.round(n * 100) / 100; }
 
 const daily = [];
 allKeys.forEach((k) => {
-  const [date, code] = k.split('|');
+  const [date, bucket] = k.split('|');
   const s = salesAgg.get(k) || { revenue: 0, grossProfit: 0, shipping: 0, packaging: 0, commissionRaw: 0 };
   const metaAds = metaAgg.get(k) || 0;
   const googleAds = googleAdsAgg.get(k) || 0;
   const affiliateFee = affiliateAgg.get(k) || 0;
   const commission = s.commissionRaw * 1.1;
   const margin = s.grossProfit - s.shipping - s.packaging - commission - metaAds - googleAds - affiliateFee;
-  // Row: [date, countryCode, revenue, budgetMeta, margin]
-  daily.push([date, code, round2(s.revenue), round2(metaAds), round2(margin)]);
+  // Row: [date, countryBucket, revenue, budgetMeta, margin]
+  daily.push([date, bucket, round2(s.revenue), round2(metaAds), round2(margin)]);
 });
 
 daily.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));

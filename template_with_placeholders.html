@@ -157,6 +157,7 @@
       <span class="date-range-summary" id="dateRangeSummary"></span>
     </div>
     <div class="date-range-presets">
+      <button type="button" class="ghost-btn" data-preset="yesterday">Ieri</button>
       <button type="button" class="ghost-btn" data-preset="last7">Ultimi 7 giorni</button>
       <button type="button" class="ghost-btn" data-preset="last14">Ultimi 14 giorni</button>
       <button type="button" class="ghost-btn" data-preset="last30">Ultimi 30 giorni</button>
@@ -219,17 +220,12 @@
   var fmtInt = function (n) { return new Intl.NumberFormat('it-IT').format(n); };
 
   var COUNTRY_NAMES = {
-    AT: 'Austria', AU: 'Australia', BE: 'Belgio', BG: 'Bulgaria', CA: 'Canada', CH: 'Svizzera',
-    CZ: 'Rep. Ceca', DE: 'Germania', DK: 'Danimarca', EE: 'Estonia', ES: 'Spagna', FI: 'Finlandia',
-    FR: 'Francia', GR: 'Grecia', HR: 'Croazia', HU: 'Ungheria', IE: 'Irlanda', IT: 'Italia',
-    LT: 'Lituania', LU: 'Lussemburgo', LV: 'Lettonia', MQ: 'Martinica', NL: 'Paesi Bassi',
-    NO: 'Norvegia', PL: 'Polonia', PT: 'Portogallo', QA: 'Qatar', RE: 'Reunion', RO: 'Romania',
-    SA: 'Arabia Saudita', SE: 'Svezia', SI: 'Slovenia', SK: 'Slovacchia', SM: 'San Marino',
-    TR: 'Turchia', UK: 'Regno Unito', US: 'Stati Uniti', ND: 'Non specificato'
+    IT: 'Italia', DE_AT: 'Germania + Austria', ES: 'Spagna', FR: 'Francia', OTHER: 'Altri paesi'
   };
+  var COUNTRY_ORDER = ['IT', 'DE_AT', 'ES', 'FR', 'OTHER'];
   function countryName(code) { return COUNTRY_NAMES[code] || code; }
 
-  // Row: [date, countryCode, revenue, budgetMeta, margin]
+  // Row: [date, countryBucket, revenue, budgetMeta, margin]
   var daily = __DAILY_JSON__;
 
   document.getElementById('genDate').textContent = '__GEN_DATE__';
@@ -282,7 +278,7 @@
   Object.keys(byCountry).forEach(function (code) {
     byCountry[code].sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
   });
-  var countryCodes = Object.keys(byCountry).sort(function (a, b) { return countryTotals[b].revenue - countryTotals[a].revenue; });
+  var countryCodes = COUNTRY_ORDER.filter(function (code) { return byCountry[code]; });
 
   var seenDates = {};
   daily.forEach(function (r) { seenDates[r[0]] = true; });
@@ -342,6 +338,7 @@
 
     function presetRange(name) {
       var max = DASH.maxDate, min = DASH.minDate, s;
+      if (name === 'yesterday') { s = addDaysStr(max, -1); if (s < min) s = min; setRange(s, s, name); return; }
       if (name === 'last7') s = addDaysStr(max, -6);
       else if (name === 'last14') s = addDaysStr(max, -13);
       else if (name === 'last30') s = addDaysStr(max, -29);
@@ -408,15 +405,10 @@
     headRow.appendChild(thTotal);
 
     var codes = DASH.country === 'ALL' ? countryCodes : [DASH.country];
-    // Only show countries with at least one non-zero value in the visible range (keeps rows relevant to the period).
+    // Only show groups with at least one non-zero value in the visible range (keeps rows relevant to the period).
+    // Order follows COUNTRY_ORDER (IT, DE_AT, ES, FR, OTHER) rather than the period's own totals, so rows don't reshuffle when the date range changes.
     var visibleCodes = codes.filter(function (code) {
       return (byCountry[code] || []).some(function (r) { return r[0] >= DASH.start && r[0] <= DASH.end && r[metricIdx] !== 0; });
-    });
-    visibleCodes.sort(function (a, b) {
-      var ta = 0, tb = 0;
-      (byCountry[a] || []).forEach(function (r) { if (r[0] >= DASH.start && r[0] <= DASH.end) ta += r[metricIdx]; });
-      (byCountry[b] || []).forEach(function (r) { if (r[0] >= DASH.start && r[0] <= DASH.end) tb += r[metricIdx]; });
-      return tb - ta;
     });
 
     var byDatePerCountry = {};
