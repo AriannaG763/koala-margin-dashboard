@@ -19,6 +19,11 @@
     --critical:  #d03b3b;
     --critical-wash: #fbe7e5;
     --grid:      #e6e4de;
+    --bk-it:     #2a78d6;
+    --bk-deat:   #1baf7a;
+    --bk-es:     #eda100;
+    --bk-fr:     #7a5cf5;
+    --bk-other:  #8a8d86;
     --shadow: 0 1px 2px rgba(20,22,20,0.04), 0 8px 24px -12px rgba(20,22,20,0.12);
   }
   @media (prefers-color-scheme: dark) {
@@ -40,6 +45,11 @@
       --critical:  #e66767;
       --critical-wash: #2c1717;
       --grid:      #26272a;
+      --bk-it:     #3987e5;
+      --bk-deat:   #22c38f;
+      --bk-es:     #f0b429;
+      --bk-fr:     #9b8cf0;
+      --bk-other:  #9a9d95;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
     }
   }
@@ -61,6 +71,11 @@
     --critical:  #e66767;
     --critical-wash: #2c1717;
     --grid:      #26272a;
+    --bk-it:     #3987e5;
+    --bk-deat:   #22c38f;
+    --bk-es:     #f0b429;
+    --bk-fr:     #9b8cf0;
+    --bk-other:  #9a9d95;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
   }
 
@@ -112,6 +127,19 @@
   .metric-toggle { display: flex; gap: 4px; background: var(--paper); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
   .metric-btn { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2); background: none; border: none; border-radius: 6px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
   .metric-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+  .pie-grid { display: flex; gap: 18px; flex-wrap: wrap; }
+  .pie-card { flex: 1; min-width: 230px; display: flex; align-items: center; gap: 16px; }
+  .pie-card .pie-svg-wrap { flex: none; }
+  .pie-card svg { display: block; }
+  .pie-card-body { flex: 1; min-width: 0; }
+  .pie-card-title { font-size: 12px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 8px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 3px 0; }
+  .legend-swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .legend-name { flex: 1; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend-value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .legend-value.neg { color: var(--critical); }
+  .pie-empty { font-size: 12.5px; color: var(--ink-muted); }
 
   .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -187,6 +215,38 @@
   <div class="panel">
     <div class="panel-head">
       <div>
+        <div class="panel-title">Suddivisione per paese</div>
+        <div class="panel-note">Periodo selezionato sopra · sempre su tutti i paesi, indipendentemente dal filtro "Paese" della tabella</div>
+      </div>
+    </div>
+    <div class="pie-grid">
+      <div class="pie-card">
+        <div class="pie-svg-wrap" id="pieRevenue"></div>
+        <div class="pie-card-body">
+          <div class="pie-card-title">Revenue</div>
+          <div id="legendRevenue"></div>
+        </div>
+      </div>
+      <div class="pie-card">
+        <div class="pie-svg-wrap" id="pieBudgetMeta"></div>
+        <div class="pie-card-body">
+          <div class="pie-card-title">Budget Meta</div>
+          <div id="legendBudgetMeta"></div>
+        </div>
+      </div>
+      <div class="pie-card">
+        <div class="pie-svg-wrap" id="pieMargin"></div>
+        <div class="pie-card-body">
+          <div class="pie-card-title">Margine di contribuzione</div>
+          <div id="legendMargin"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
         <div class="panel-title" id="tableTitle">Revenue giornaliera per paese</div>
         <div class="panel-note">Riga "Totale" = somma di tutti i paesi per quel giorno · colonna "Totale periodo" = somma sul periodo selezionato</div>
       </div>
@@ -223,6 +283,10 @@
     IT: 'Italia', DE_AT: 'Germania + Austria', ES: 'Spagna', FR: 'Francia', OTHER: 'Altri paesi'
   };
   var COUNTRY_ORDER = ['IT', 'DE_AT', 'ES', 'FR', 'OTHER'];
+  var COUNTRY_COLORS = {
+    IT: 'var(--bk-it)', DE_AT: 'var(--bk-deat)', ES: 'var(--bk-es)', FR: 'var(--bk-fr)', OTHER: 'var(--bk-other)'
+  };
+  var LEGEND_LABELS = { IT: 'Italia', DE_AT: 'DE + AT', ES: 'Spagna', FR: 'Francia', OTHER: 'Altri' };
   function countryName(code) { return COUNTRY_NAMES[code] || code; }
 
   // Row: [date, countryBucket, revenue, budgetMeta, margin]
@@ -448,9 +512,65 @@
     document.getElementById('tableCount').textContent = visibleCodes.length + ' paesi · ' + dates.length + ' giorni';
   }
 
+  // ---------- Pie (donut) charts: country breakdown, one per metric, always all countries ----------
+  function computeBucketTotals(metricIdx) {
+    var out = {};
+    countryCodes.forEach(function (code) {
+      var sum = 0;
+      (byCountry[code] || []).forEach(function (r) { if (r[0] >= DASH.start && r[0] <= DASH.end) sum += r[metricIdx]; });
+      out[code] = sum;
+    });
+    return out;
+  }
+
+  function renderDonut(svgElId, legendElId, metricIdx) {
+    var totals = computeBucketTotals(metricIdx);
+    var entries = countryCodes.map(function (code) { return { code: code, label: LEGEND_LABELS[code] || countryName(code), value: totals[code] }; });
+    var positiveTotal = entries.reduce(function (s, e) { return s + Math.max(e.value, 0); }, 0);
+
+    var size = 120, strokeW = 22, r = (size - strokeW) / 2;
+    var circumference = 2 * Math.PI * r;
+    var cum = 0;
+    var circles = '';
+    if (positiveTotal > 0) {
+      entries.forEach(function (e) {
+        var frac = Math.max(e.value, 0) / positiveTotal;
+        var len = frac * circumference;
+        if (len > 0.01) {
+          circles += '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + COUNTRY_COLORS[e.code] + '" ' +
+            'stroke-width="' + strokeW + '" stroke-dasharray="' + len.toFixed(2) + ' ' + (circumference - len).toFixed(2) + '" ' +
+            'stroke-dashoffset="' + (-cum).toFixed(2) + '"></circle>';
+        }
+        cum += len;
+      });
+    } else {
+      circles = '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="' + strokeW + '"></circle>';
+    }
+    document.getElementById(svgElId).innerHTML =
+      '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '">' +
+      '<g transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')">' + circles + '</g></svg>';
+
+    var legendHtml = entries.map(function (e) {
+      var pct = positiveTotal > 0 && e.value > 0 ? Math.round(e.value / positiveTotal * 100) + '%' : '—';
+      return '<div class="legend-row">' +
+        '<span class="legend-swatch" style="background:' + COUNTRY_COLORS[e.code] + '"></span>' +
+        '<span class="legend-name">' + e.label + '</span>' +
+        '<span class="legend-value' + (e.value < 0 ? ' neg' : '') + '">' + fmtEUR(e.value) + ' · ' + pct + '</span>' +
+        '</div>';
+    }).join('');
+    document.getElementById(legendElId).innerHTML = legendHtml || '<div class="pie-empty">Nessun dato nel periodo</div>';
+  }
+
+  function renderPies() {
+    renderDonut('pieRevenue', 'legendRevenue', METRICS.revenue.idx);
+    renderDonut('pieBudgetMeta', 'legendBudgetMeta', METRICS.budgetMeta.idx);
+    renderDonut('pieMargin', 'legendMargin', METRICS.margin.idx);
+  }
+
   function renderAll() {
     var dates = dateRangeList(DASH.start, DASH.end);
     renderSummary(dates);
+    renderPies();
     renderTable(dates);
   }
 
