@@ -463,7 +463,9 @@
 
     function presetRange(name) {
       var max = DASH.maxDate, min = DASH.minDate, s;
-      if (name === 'yesterday') { s = addDaysStr(max, -1); if (s < min) s = min; setRange(s, s, name); return; }
+      // DASH.maxDate is already "yesterday" (aggregate.js excludes the current calendar day),
+      // so the "Ieri" preset is just that last available day, not max-1.
+      if (name === 'yesterday') { setRange(max, max, name); return; }
       if (name === 'last7') s = addDaysStr(max, -6);
       else if (name === 'last14') s = addDaysStr(max, -13);
       else if (name === 'last30') s = addDaysStr(max, -29);
