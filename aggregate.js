@@ -1,10 +1,11 @@
-// Aggregates the 4 Google Sheet CSV exports into the compact JSON array the dashboard
-// template needs: one row per (date, countryBucket) from 2026-01-01 onward with Revenue,
-// Budget Meta, Budget Google and Margine di contribuzione. Countries are grouped into IT, DE_AT, ES, FR, OTHER.
-// Run: node aggregate.js <sales_csv> <meta_csv> <affiliate_csv> <google_ads_csv> <out_dir>
+// Aggregates the 3 Google Sheet CSV exports plus the Meta Ads API JSON (from fetch_meta.js) into
+// the compact JSON array the dashboard template needs: one row per (date, countryBucket) from
+// 2026-01-01 onward with Revenue, Budget Meta, Budget Google and Margine di contribuzione.
+// Countries are grouped into IT, DE_AT, ES, FR, OTHER.
+// Run: node aggregate.js <sales_csv> <meta_json> <affiliate_csv> <google_ads_csv> <out_dir>
 const fs = require('fs');
 
-const [, , salesCsvPath, metaCsvPath, affiliateCsvPath, googleAdsCsvPath, outDir] = process.argv;
+const [, , salesCsvPath, metaJsonPath, affiliateCsvPath, googleAdsCsvPath, outDir] = process.argv;
 
 const START_DATE = '2026-01-01';
 
@@ -13,8 +14,7 @@ const START_DATE = '2026-01-01';
 const TODAY_ROME = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
 function parseCsv(text) {
-  // Full-text CSV parser (handles quoted fields with embedded commas AND embedded
-  // newlines, e.g. ad names copy-pasted from Instagram captions in "Dati Meta").
+  // Full-text CSV parser (handles quoted fields with embedded commas AND embedded newlines).
   const rows = [];
   let row = [];
   let cur = '';
@@ -110,19 +110,13 @@ const salesAgg = new Map();
   }
 }
 
-// ---------- Meta sheet: "Dati Meta" ----------
-// Columns used: C=2 Date (M/D/YYYY), D=3 Amount Spent (US-style decimal).
+// ---------- Meta Ads: Marketing API JSON from fetch_meta.js ----------
+// Rows: [date (YYYY-MM-DD), country code ('unknown' when Meta can't attribute it), spend].
 const metaAgg = new Map();
-{
-  const rows = parseCsv(fs.readFileSync(metaCsvPath, 'utf8'));
-  for (let i = 1; i < rows.length; i++) {
-    const r = rows[i];
-    const iso = isoFromMDY(r[2]);
-    if (!iso || iso < START_DATE || iso >= TODAY_ROME) continue;
-    const code = (r[1] && r[1] !== 'unknown') ? r[1] : 'ND';
-    const k = keyOf(iso, code);
-    metaAgg.set(k, (metaAgg.get(k) || 0) + parseNumUs(r[3]));
-  }
+for (const [iso, country, spend] of JSON.parse(fs.readFileSync(metaJsonPath, 'utf8'))) {
+  if (iso < START_DATE || iso >= TODAY_ROME) continue;
+  const k = keyOf(iso, country !== 'unknown' ? country : 'ND');
+  metaAgg.set(k, (metaAgg.get(k) || 0) + spend);
 }
 
 // ---------- Affiliate sheet: "Influencer Affiliate" ----------
