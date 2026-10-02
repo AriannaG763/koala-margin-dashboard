@@ -67,12 +67,6 @@ function parseNumUs(s) {
   return isNaN(n) ? 0 : n;
 }
 
-function isoFromMDY(s) {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s).trim());
-  if (!m) return null;
-  return m[3] + '-' + String(m[1]).padStart(2, '0') + '-' + String(m[2]).padStart(2, '0');
-}
-
 function isoFromDMY(s) {
   s = String(s).trim();
   // "Influencer Affiliate" has a mixed date column: older rows are "DD/MM/YYYY" text,
@@ -164,16 +158,17 @@ let affiliateLast = '';
   }
 }
 
-// ---------- Google Ads sheet ----------
-// Columns used: A=0 Date (M/D/YYYY), B=1 Country Code, C=2 Cost (US-style decimal).
+// ---------- Google Ads: tab "Google Ads Script", written hourly by a Google Ads script ----------
+// Columns used: A=0 Date (YYYY-MM-DD), B=1 Country Code (where the user physically was; 'unknown' = cost
+// Google Ads can't attribute to a country), C=2 Cost (plain decimal).
 const googleAdsAgg = new Map();
 let googleAdsLast = '';
 {
   const rows = parseCsv(fs.readFileSync(googleAdsCsvPath, 'utf8'));
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
-    const iso = isoFromMDY(r[0]);
-    if (!iso || iso < START_DATE || iso >= TODAY_ROME) continue;
+    const iso = String(r[0] || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || iso < START_DATE || iso >= TODAY_ROME) continue;
     if (iso > googleAdsLast) googleAdsLast = iso;
     const code = r[1] || 'ND';
     const k = keyOf(iso, code);

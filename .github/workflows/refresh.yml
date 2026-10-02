@@ -29,7 +29,7 @@ jobs:
           curl -sS -f -L "https://docs.google.com/spreadsheets/d/1p2uWBej0f8dD3QjRzOZ963aJnLY55kDMDTrKpVq175U/gviz/tq?tqx=out:csv&sheet=Shopify_Daily_Sales_By_Country" -o sales.csv
           node fetch_meta.js meta.json
           curl -sS -f -L "https://docs.google.com/spreadsheets/d/1p2uWBej0f8dD3QjRzOZ963aJnLY55kDMDTrKpVq175U/gviz/tq?tqx=out:csv&sheet=Influencer%20Affiliate" -o affiliate.csv
-          curl -sS -f -L "https://docs.google.com/spreadsheets/d/1XOjCFziIR78KZLE1g6Ct8OPIZ3Zj5giQ5Xi49B84CAM/gviz/tq?tqx=out:csv&sheet=Sheet1" -o gads.csv
+          curl -sS -f -L "https://docs.google.com/spreadsheets/d/1XOjCFziIR78KZLE1g6Ct8OPIZ3Zj5giQ5Xi49B84CAM/gviz/tq?tqx=out:csv&sheet=Google%20Ads%20Script" -o gads.csv
           curl -sS -L "https://koala-margin-dashboard.pages.dev/" -o previous.html || true
           wc -l sales.csv affiliate.csv gads.csv
           head -1 sales.csv affiliate.csv gads.csv
