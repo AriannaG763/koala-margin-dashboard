@@ -3,6 +3,8 @@ meta.json
 affiliate.csv
 gads.csv
 daily.json
+status.json
+previous.html
 extracted.js
 koala-margin-dashboard.html
 _site/

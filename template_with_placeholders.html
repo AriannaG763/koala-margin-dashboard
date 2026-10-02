@@ -111,6 +111,13 @@
   .stat-card .stat-value { font-size: 20px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
   .stat-card .stat-value.neg { color: var(--critical); }
 
+  .status-card { flex: 1; min-width: 180px; background: var(--paper); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; }
+  .status-card .status-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 600; }
+  .status-card .status-state { font-size: 14px; font-weight: 700; margin-top: 4px; color: var(--good); }
+  .status-card .status-detail { font-size: 11.5px; color: var(--ink-2); margin-top: 2px; line-height: 1.45; }
+  .status-card.stale { background: var(--critical-wash); border-color: var(--critical); }
+  .status-card.stale .status-state, .status-card.stale .status-detail { color: var(--critical); }
+
   .date-range-panel { padding: 16px 20px; }
   .date-range-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 12px; }
   .date-range-row:last-child { margin-bottom: 0; }
@@ -215,6 +222,10 @@
   </div>
 
   <div class="panel">
+    <div class="summary-row" id="sourceStatusRow"></div>
+  </div>
+
+  <div class="panel">
     <div class="summary-row" id="summaryRow"></div>
   </div>
 
@@ -306,6 +317,25 @@
   var daily = __DAILY_JSON__;
 
   document.getElementById('genDate').textContent = '__GEN_DATE__';
+
+  // Per-source refresh status from aggregate.js; the data above is already cut at STATUS.cutoff.
+  var STATUS = __STATUS_JSON__;
+  (function () {
+    var checked = STATUS.checkedAt.split(' ');
+    var checkedText = fmtItDate(checked[0]) + ' alle ' + checked[1];
+    document.getElementById('sourceStatusRow').innerHTML = STATUS.sources.map(function (s) {
+      if (s.ok) {
+        return '<div class="status-card"><div class="status-name">' + s.name + '</div>' +
+          '<div class="status-state">✓ Aggiornato</div>' +
+          '<div class="status-detail">Dati fino al ' + fmtItDate(s.last) + '<br>Controllato il ' + checkedText + '</div></div>';
+      }
+      return '<div class="status-card stale"><div class="status-name">' + s.name + '</div>' +
+        '<div class="status-state">✗ Aggiornamento saltato</div>' +
+        '<div class="status-detail">' + (s.error ? 'Errore nella lettura delle API. ' : '') +
+        'Ultimo dato: ' + fmtItDate(s.last) + ' (atteso ' + fmtItDate(STATUS.expected) + ').<br>' +
+        'Il report non si è aggiornato: è fermo al ' + fmtItDate(STATUS.cutoff) + '.</div></div>';
+    }).join('');
+  })();
 
   var METRICS = {
     revenue: { idx: 2, label: 'Revenue' },

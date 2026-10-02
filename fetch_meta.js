@@ -51,6 +51,8 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e.message);
-  process.exit(1);
+  // Don't fail the build: aggregate.js falls back to the last deployed Meta figures and the
+  // dashboard shows a red "source not updated" banner instead of silently going stale.
+  console.error('Meta API fetch failed:', e.message);
+  fs.writeFileSync(outPath, JSON.stringify({ error: e.message }));
 });
