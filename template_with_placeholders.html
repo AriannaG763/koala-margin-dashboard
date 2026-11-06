@@ -28,6 +28,9 @@
     --series-ads:    #eda100;
     --series-other:  #b7b4a8;
     --series-mer:    #7a5cf5;
+    --ch-meta:   #3b5998;
+    --ch-google: #34a853;
+    --ch-tiktok: #ee1d52;
     --shadow: 0 1px 2px rgba(20,22,20,0.04), 0 8px 24px -12px rgba(20,22,20,0.12);
   }
   @media (prefers-color-scheme: dark) {
@@ -162,6 +165,17 @@
 
   .bar-chart-wrap { overflow-x: auto; }
   svg.bar-chart { display: block; }
+  .chart-tooltip {
+    position: fixed; pointer-events: none; opacity: 0; transition: opacity 0.1s ease;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+    padding: 12px 14px; font-size: 12px; z-index: 80; min-width: 190px;
+  }
+  .chart-tooltip.visible { opacity: 1; }
+  .chart-tooltip .tt-date { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+  .chart-tooltip .tt-row { display: flex; align-items: center; gap: 7px; padding: 2px 0; white-space: nowrap; }
+  .chart-tooltip .tt-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .chart-tooltip .tt-label { flex: 1; color: var(--ink-2); }
+  .chart-tooltip .tt-value { font-weight: 700; font-variant-numeric: tabular-nums; margin-left: 14px; }
   .bar-chart-legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 4px 0 16px; }
   .bar-chart-legend .legend-row { font-size: 12px; }
   .bar-chart-legend .legend-swatch { width: 10px; height: 10px; }
@@ -333,6 +347,7 @@
       <div class="legend-row"><span class="legend-swatch line" style="background:var(--series-mer)"></span><span class="legend-name">MER = Revenue / Spese Ads</span></div>
     </div>
     <div id="revenueBarCharts"></div>
+    <div id="barChartTooltip" class="chart-tooltip"></div>
   </div>
 
   <footer>
@@ -742,29 +757,32 @@
       var dot = g.code ? '<span class="legend-swatch" style="background:' + COUNTRY_COLORS[g.code] + '"></span>' : '';
       return '<div class="bar-chart-country">' +
         '<div class="bar-chart-country-title">' + dot + g.label + '</div>' +
-        '<div class="bar-chart-wrap">' + renderOneBarChart(data, level) + '</div>' +
+        '<div class="bar-chart-wrap">' + renderOneBarChart(data, level, g.label) + '</div>' +
         '</div>';
     }).join('');
   }
 
   function computeBarChartData(codes, buckets, level) {
     var byBucket = {};
-    buckets.forEach(function (b) { byBucket[b] = { revenue: 0, ads: 0, margin: 0 }; });
+    buckets.forEach(function (b) { byBucket[b] = { revenue: 0, meta: 0, google: 0, tiktok: 0, margin: 0 }; });
     codes.forEach(function (code) {
       (byCountry[code] || []).forEach(function (r) {
         if (r[0] < DASH.start || r[0] > DASH.end) return;
         var k = bucketKeyFor(r[0], level);
         if (!byBucket[k]) return;
         byBucket[k].revenue += r[2];
-        byBucket[k].ads += r[3] + r[4] + r[5];
+        byBucket[k].meta += r[3];
+        byBucket[k].google += r[4];
+        byBucket[k].tiktok += r[5];
         byBucket[k].margin += r[6];
       });
     });
     return buckets.map(function (b) {
       var e = byBucket[b];
-      var other = Math.max(0, e.revenue - e.ads - e.margin);
-      var mer = e.ads > 0 ? e.revenue / e.ads : null;
-      return { bucket: b, revenue: e.revenue, ads: e.ads, margin: e.margin, other: other, mer: mer };
+      var ads = e.meta + e.google + e.tiktok;
+      var other = Math.max(0, e.revenue - ads - e.margin);
+      var mer = ads > 0 ? e.revenue / ads : null;
+      return { bucket: b, revenue: e.revenue, meta: e.meta, google: e.google, tiktok: e.tiktok, ads: ads, margin: e.margin, other: other, mer: mer };
     });
   }
 
@@ -773,11 +791,11 @@
     return Math.round(n) + ' €';
   }
 
-  function renderOneBarChart(data, level) {
+  function renderOneBarChart(data, level, groupLabel) {
     var maxRevenue = Math.max.apply(null, data.map(function (d) { return d.revenue; })) || 1;
     var validMers = data.map(function (d) { return d.mer; }).filter(function (m) { return m !== null; });
     var maxMer = (validMers.length ? Math.max.apply(null, validMers) : 1) * 1.15 || 1;
-    var barW = 28, gap = 14, padT = 10, padB = 26, padL = 46, padR = 40, plotH = 220;
+    var barW = 28, gap = 14, padT = 20, padB = 26, padL = 46, padR = 40, plotH = 210;
     var w = data.length * (barW + gap) + gap + padL + padR;
     var h = plotH + padT + padB;
     var scale = plotH / maxRevenue;
@@ -785,6 +803,8 @@
     var yBase = padT + plotH;
     var plotLeft = padL;
     var plotRight = w - padR;
+
+    if (!data.length) return '<svg width="200" height="60"><text x="10" y="20" font-size="12" fill="var(--ink-muted)">Nessun dato nel periodo</text></svg>';
 
     // Horizontal reference gridlines + value labels on both axes (left: Revenue scale, right: MER scale).
     var NUM_TICKS = 4;
@@ -801,9 +821,12 @@
     }
 
     var bars = '';
+    var pctLabels = '';
+    var hoverCols = '';
     var points = [];
     data.forEach(function (d, i) {
       var x = plotLeft + gap + i * (barW + gap);
+      var cx = x + barW / 2;
       var marginH = d.margin * scale;
       var adsH = d.ads * scale;
       var otherH = d.other * scale;
@@ -812,24 +835,86 @@
       var yOtherTop = yAdsTop - otherH;
       var label = bucketLabel(d.bucket, level);
       bars +=
-        '<rect x="' + x + '" y="' + yMarginTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, marginH).toFixed(1) + '" fill="var(--series-margin)"><title>' + label + ' — Margine: ' + fmtEUR(d.margin) + '</title></rect>' +
-        '<rect x="' + x + '" y="' + yAdsTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, adsH).toFixed(1) + '" fill="var(--series-ads)"><title>' + label + ' — Spese Ads: ' + fmtEUR(d.ads) + '</title></rect>' +
-        '<rect x="' + x + '" y="' + yOtherTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, otherH).toFixed(1) + '" fill="var(--series-other)"><title>' + label + ' — Altri costi: ' + fmtEUR(d.other) + '</title></rect>' +
-        '<text x="' + (x + barW / 2) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="9" fill="var(--ink-muted)">' + label + '</text>';
-      if (d.mer !== null) {
-        points.push({ x: x + barW / 2, y: yBase - d.mer * merScale, mer: d.mer, label: label });
+        '<rect x="' + x + '" y="' + yMarginTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, marginH).toFixed(1) + '" fill="var(--series-margin)"/>' +
+        '<rect x="' + x + '" y="' + yAdsTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, adsH).toFixed(1) + '" fill="var(--series-ads)"/>' +
+        '<rect x="' + x + '" y="' + yOtherTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, otherH).toFixed(1) + '" fill="var(--series-other)"/>' +
+        '<text x="' + cx + '" y="' + (h - 8) + '" text-anchor="middle" font-size="9" fill="var(--ink-muted)">' + label + '</text>';
+
+      if (d.revenue > 0) {
+        var adsPct = Math.round(d.ads / d.revenue * 100);
+        var marginPct = Math.round(d.margin / d.revenue * 100);
+        pctLabels +=
+          '<text x="' + cx + '" y="' + (yAdsTop - 3).toFixed(1) + '" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)">' + adsPct + '%</text>' +
+          '<text x="' + cx + '" y="' + (yMarginTop - 3).toFixed(1) + '" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)">' + marginPct + '%</text>';
       }
+
+      if (d.mer !== null) {
+        points.push({ x: cx, y: yBase - d.mer * merScale, mer: d.mer, label: label });
+      }
+
+      var tip = {
+        group: groupLabel, label: label, revenue: d.revenue, meta: d.meta, google: d.google,
+        tiktok: d.tiktok, margin: d.margin, other: d.other, mer: d.mer
+      };
+      hoverCols += '<rect class="hover-col" x="' + (x - gap / 2).toFixed(1) + '" y="' + padT + '" width="' + (barW + gap).toFixed(1) + '" height="' + plotH + '" fill="transparent" pointer-events="all" data-tip="' + JSON.stringify(tip).replace(/"/g, '&quot;') + '"></rect>';
     });
 
     var linePath = points.map(function (p, i) { return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ');
     var lineSvg = points.length > 1 ? '<path d="' + linePath + '" fill="none" stroke="var(--series-mer)" stroke-width="2"/>' : '';
     var dotsSvg = points.map(function (p) {
-      return '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3" fill="var(--series-mer)"><title>' + p.label + ' — MER: ' + p.mer.toFixed(2) + 'x</title></circle>';
+      return '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3" fill="var(--series-mer)"/>';
     }).join('');
 
-    if (!data.length) return '<svg width="200" height="60"><text x="10" y="20" font-size="12" fill="var(--ink-muted)">Nessun dato nel periodo</text></svg>';
-    return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">' + gridlines + bars + lineSvg + dotsSvg + '</svg>';
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">' + gridlines + bars + pctLabels + lineSvg + dotsSvg + hoverCols + '</svg>';
   }
+
+  // ---------- Shared rich tooltip (one instance, reused by every chart via event delegation) ----------
+  (function () {
+    var tooltipEl = document.getElementById('barChartTooltip');
+    var wrap = document.getElementById('revenueBarCharts');
+
+    function row(color, label, value) {
+      return '<div class="tt-row"><span class="tt-dot" style="background:' + color + '"></span>' +
+        '<span class="tt-label">' + label + '</span><span class="tt-value">' + value + '</span></div>';
+    }
+
+    function showTooltip(evt, tip) {
+      var html = '<div class="tt-date">' + tip.label + (tip.group ? ' · ' + tip.group : '') + '</div>' +
+        row('var(--accent)', 'Revenue', fmtEUR(tip.revenue)) +
+        row('var(--ch-meta)', 'Meta Ads', fmtEUR(tip.meta)) +
+        row('var(--ch-google)', 'Google Ads', fmtEUR(tip.google)) +
+        row('var(--ch-tiktok)', 'TikTok Ads', fmtEUR(tip.tiktok)) +
+        row('var(--series-margin)', 'Margine di contribuzione', fmtEUR(tip.margin)) +
+        row('var(--series-other)', 'Altri costi', fmtEUR(tip.other)) +
+        row('var(--series-mer)', 'MER', tip.mer !== null ? tip.mer.toFixed(2) + 'x' : '—');
+      tooltipEl.innerHTML = html;
+      tooltipEl.classList.add('visible');
+      positionTooltip(evt);
+    }
+
+    function positionTooltip(evt) {
+      var pad = 14;
+      var ttRect = tooltipEl.getBoundingClientRect();
+      var x = evt.clientX + pad;
+      var y = evt.clientY + pad;
+      if (x + ttRect.width > window.innerWidth - 8) x = evt.clientX - ttRect.width - pad;
+      if (y + ttRect.height > window.innerHeight - 8) y = evt.clientY - ttRect.height - pad;
+      tooltipEl.style.left = Math.max(8, x) + 'px';
+      tooltipEl.style.top = Math.max(8, y) + 'px';
+    }
+
+    function hideTooltip() {
+      tooltipEl.classList.remove('visible');
+    }
+
+    wrap.addEventListener('mousemove', function (evt) {
+      var el = evt.target.closest ? evt.target.closest('.hover-col') : null;
+      if (!el) { hideTooltip(); return; }
+      var tip = JSON.parse(el.getAttribute('data-tip').replace(/&quot;/g, '"'));
+      showTooltip(evt, tip);
+    });
+    wrap.addEventListener('mouseleave', hideTooltip);
+  })();
 
   function renderAll() {
     renderSummary();
