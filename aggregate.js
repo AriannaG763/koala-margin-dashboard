@@ -1,11 +1,12 @@
-// Aggregates the 3 Google Sheet CSV exports plus the Meta Ads API JSON (from fetch_meta.js) into
-// the compact JSON array the dashboard template needs: one row per (date, countryBucket) from
-// 2026-01-01 onward with Revenue, Budget Meta, Budget Google and Margine di contribuzione.
+// Aggregates the 3 Google Sheet CSV exports plus the Meta Ads and TikTok Ads API JSON (from
+// fetch_meta.js / fetch_tiktok.js) into the compact JSON array the dashboard template needs:
+// one row per (date, countryBucket) from 2026-01-01 onward with Revenue, Budget Meta, Budget
+// Google, Budget TikTok and Margine di contribuzione.
 // Countries are grouped into IT, DE_AT, ES, FR, OTHER.
-// Run: node aggregate.js <sales_csv> <meta_json> <affiliate_csv> <google_ads_csv> <out_dir> [previous_dashboard_html]
+// Run: node aggregate.js <sales_csv> <meta_json> <affiliate_csv> <google_ads_csv> <tiktok_json> <out_dir> [previous_dashboard_html]
 const fs = require('fs');
 
-const [, , salesCsvPath, metaJsonPath, affiliateCsvPath, googleAdsCsvPath, outDir, previousHtmlPath] = process.argv;
+const [, , salesCsvPath, metaJsonPath, affiliateCsvPath, googleAdsCsvPath, tiktokJsonPath, outDir, previousHtmlPath] = process.argv;
 
 const START_DATE = '2026-01-01';
 
@@ -52,7 +53,7 @@ function parseCsv(text) {
 
 function parseNumEu(s) {
   if (!s) return 0;
-  s = String(s).trim().replace(/€/g, '').replace(/ /g, '').replace(/ /g, '');
+  s = String(s).trim().replace(/€/g, '').replace(/ /g, '').replace(/ /g, '');
   if (s === '') return 0;
   s = s.replace(/\./g, '').replace(',', '.');
   const n = parseFloat(s);
@@ -61,7 +62,7 @@ function parseNumEu(s) {
 
 function parseNumUs(s) {
   if (!s) return 0;
-  s = String(s).trim().replace(/€/g, '').replace(/\$/g, '').replace(/,/g, '').replace(/ /g, '').replace(/ /g, '');
+  s = String(s).trim().replace(/€/g, '').replace(/\$/g, '').replace(/,/g, '').replace(/ /g, '').replace(/ /g, '');
   if (s === '') return 0;
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
@@ -141,6 +142,34 @@ let metaError = null;
   }
 }
 
+// ---------- TikTok Ads: Marketing API JSON from fetch_tiktok.js ----------
+// Rows: [date (YYYY-MM-DD), country code ('unknown' when TikTok can't attribute it), spend],
+// or {error} when the API call failed - then reuse the TikTok figures of the last deployed dashboard.
+const tiktokAgg = new Map();
+let tiktokLast = '';
+let tiktokError = null;
+{
+  const tiktok = JSON.parse(fs.readFileSync(tiktokJsonPath, 'utf8'));
+  if (Array.isArray(tiktok)) {
+    for (const [iso, country, spend] of tiktok) {
+      if (iso < START_DATE || iso >= TODAY_ROME) continue;
+      const k = keyOf(iso, country !== 'unknown' ? country : 'ND');
+      tiktokAgg.set(k, (tiktokAgg.get(k) || 0) + spend);
+    }
+    // Fetched live, so it's complete through yesterday even if yesterday had no spend at all.
+    tiktokLast = YESTERDAY_ROME;
+  } else {
+    tiktokError = tiktok.error;
+    const prevHtml = previousHtmlPath && fs.existsSync(previousHtmlPath) ? fs.readFileSync(previousHtmlPath, 'utf8') : '';
+    const m = /var daily = (\[\[.*?\]\]);/s.exec(prevHtml);
+    if (!m) throw new Error(`TikTok API failed (${tiktokError}) and there is no previous dashboard data to fall back on`);
+    for (const [date, bucket, , , , budgetTikTok] of JSON.parse(m[1])) {
+      tiktokAgg.set(date + '|' + bucket, budgetTikTok);
+      if (date > tiktokLast) tiktokLast = date;
+    }
+  }
+}
+
 // ---------- Affiliate sheet: "Influencer Affiliate" ----------
 // Columns used: A=0 Order Date (D/M/YYYY), D=3 Shipping Country Code, G=6 Affiliate fee.
 const affiliateAgg = new Map();
@@ -178,7 +207,7 @@ let googleAdsLast = '';
 
 // ---------- Merge (union of every (date,bucket) key seen in any source) ----------
 // Country bucket: IT, DE_AT (Germany + Austria merged), ES, FR kept separate; everything else -> OTHER.
-const allKeys = new Set([...salesAgg.keys(), ...metaAgg.keys(), ...affiliateAgg.keys(), ...googleAdsAgg.keys()]);
+const allKeys = new Set([...salesAgg.keys(), ...metaAgg.keys(), ...affiliateAgg.keys(), ...googleAdsAgg.keys(), ...tiktokAgg.keys()]);
 
 function round2(n) { return Math.round(n * 100) / 100; }
 
@@ -188,22 +217,26 @@ allKeys.forEach((k) => {
   const s = salesAgg.get(k) || { revenue: 0, grossProfit: 0, shipping: 0, packaging: 0, commissionRaw: 0 };
   const metaAds = metaAgg.get(k) || 0;
   const googleAds = googleAdsAgg.get(k) || 0;
+  const tiktokAds = tiktokAgg.get(k) || 0;
   const affiliateFee = affiliateAgg.get(k) || 0;
   const commission = s.commissionRaw * 1.1;
-  const margin = s.grossProfit - s.shipping - s.packaging - commission - metaAds - googleAds - affiliateFee;
-  // Row: [date, countryBucket, revenue, budgetMeta, budgetGoogle, margin]
-  daily.push([date, bucket, round2(s.revenue), round2(metaAds), round2(googleAds), round2(margin)]);
+  const margin = s.grossProfit - s.shipping - s.packaging - commission - metaAds - googleAds - tiktokAds - affiliateFee;
+  // Row: [date, countryBucket, revenue, budgetMeta, budgetGoogle, budgetTikTok, margin]
+  daily.push([date, bucket, round2(s.revenue), round2(metaAds), round2(googleAds), round2(tiktokAds), round2(margin)]);
 });
 
 daily.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
 
 // ---------- Freshness: a source skipped its refresh if it has nothing for yesterday ----------
 // (no 2026 day so far has had zero affiliate orders, so an empty yesterday there means a skipped refresh too).
+// TikTok Ads only started running in late October 2026, so its own "last" is still meaningful for
+// freshness (most recent day with data) even though it has no rows before then.
 // The report stops at the last day every source has, so a missing source never shows up as zero cost.
 const sources = [
   { name: 'Shopify', last: salesLast },
   { name: 'Meta Ads', last: metaLast, error: metaError },
   { name: 'Google Ads', last: googleAdsLast },
+  { name: 'TikTok Ads', last: tiktokLast, error: tiktokError },
   { name: 'Influencer Affiliate', last: affiliateLast },
 ];
 const cutoff = sources.reduce((min, s) => (s.last < min ? s.last : min), YESTERDAY_ROME);
