@@ -150,10 +150,14 @@
 
   .bar-chart-wrap { overflow-x: auto; }
   svg.bar-chart { display: block; }
-  .bar-chart-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; }
+  .bar-chart-legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 4px 0 16px; }
   .bar-chart-legend .legend-row { font-size: 12px; }
   .bar-chart-legend .legend-swatch { width: 10px; height: 10px; }
+  .bar-chart-legend .legend-swatch.line { width: 14px; height: 3px; border-radius: 2px; }
   .bar-chart-legend .legend-name { flex: none; }
+  .bar-chart-country { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .bar-chart-country:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+  .bar-chart-country-title { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; }
 
   .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -307,17 +311,16 @@
     <div class="panel-head">
       <div>
         <div class="panel-title">Composizione Revenue</div>
-        <div class="panel-note">Periodo e paese selezionati sopra · altezza totale della barra = Revenue; al suo interno Spese Ads e Margine di contribuzione, più "Altri costi" (Gross Profit, Shipping, Packaging, Commission Fee, Affiliate Cost) per far tornare esattamente la Revenue</div>
+        <div class="panel-note">Periodo selezionato sopra · un grafico per "Tutti i paesi" e uno per ciascun paese · altezza totale della barra = Revenue; al suo interno Spese Ads e Margine di contribuzione, più "Altri costi" (Gross Profit, Shipping, Packaging, Commission Fee, Affiliate Cost) per far tornare esattamente la Revenue · la linea indica il MER (Revenue / Spese Ads)</div>
       </div>
-    </div>
-    <div class="bar-chart-wrap">
-      <svg id="revenueBarChart" class="bar-chart"></svg>
     </div>
     <div class="bar-chart-legend">
       <div class="legend-row"><span class="legend-swatch" style="background:var(--warning)"></span><span class="legend-name">Spese Ads (Meta + Google + TikTok)</span></div>
       <div class="legend-row"><span class="legend-swatch" style="background:var(--good)"></span><span class="legend-name">Margine di contribuzione</span></div>
       <div class="legend-row"><span class="legend-swatch" style="background:var(--ink-muted)"></span><span class="legend-name">Altri costi</span></div>
+      <div class="legend-row"><span class="legend-swatch line" style="background:var(--accent)"></span><span class="legend-name">MER = Revenue / Spese Ads</span></div>
     </div>
+    <div id="revenueBarCharts"></div>
   </div>
 
   <footer>
@@ -707,8 +710,32 @@
   function renderRevenueBarChart() {
     var level = DASH.level;
     var buckets = bucketRangeList(DASH.start, DASH.end, level);
-    var codes = DASH.country === 'ALL' ? countryCodes : [DASH.country];
+    var wrap = document.getElementById('revenueBarCharts');
 
+    var visibleCodes = countryCodes.filter(function (code) {
+      return (byCountry[code] || []).some(function (r) { return r[0] >= DASH.start && r[0] <= DASH.end; });
+    });
+
+    if (visibleCodes.length === 0) {
+      wrap.innerHTML = '<div class="pie-empty">Nessun dato nel periodo</div>';
+      return;
+    }
+
+    var groups = [{ code: null, label: 'Tutti i paesi', codes: visibleCodes }].concat(
+      visibleCodes.map(function (code) { return { code: code, label: countryName(code), codes: [code] }; })
+    );
+
+    wrap.innerHTML = groups.map(function (g) {
+      var data = computeBarChartData(g.codes, buckets, level);
+      var dot = g.code ? '<span class="legend-swatch" style="background:' + COUNTRY_COLORS[g.code] + '"></span>' : '';
+      return '<div class="bar-chart-country">' +
+        '<div class="bar-chart-country-title">' + dot + g.label + '</div>' +
+        '<div class="bar-chart-wrap">' + renderOneBarChart(data, level) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function computeBarChartData(codes, buckets, level) {
     var byBucket = {};
     buckets.forEach(function (b) { byBucket[b] = { revenue: 0, ads: 0, margin: 0 }; });
     codes.forEach(function (code) {
@@ -721,23 +748,29 @@
         byBucket[k].margin += r[6];
       });
     });
-
-    var data = buckets.map(function (b) {
+    return buckets.map(function (b) {
       var e = byBucket[b];
       var other = Math.max(0, e.revenue - e.ads - e.margin);
-      return { bucket: b, revenue: e.revenue, ads: e.ads, margin: e.margin, other: other };
+      var mer = e.ads > 0 ? e.revenue / e.ads : null;
+      return { bucket: b, revenue: e.revenue, ads: e.ads, margin: e.margin, other: other, mer: mer };
     });
+  }
 
+  function renderOneBarChart(data, level) {
     var maxRevenue = Math.max.apply(null, data.map(function (d) { return d.revenue; })) || 1;
-    var barW = 28, gap = 14, padT = 10, padB = 26, plotH = 220;
-    var w = data.length * (barW + gap) + gap;
+    var validMers = data.map(function (d) { return d.mer; }).filter(function (m) { return m !== null; });
+    var maxMer = (validMers.length ? Math.max.apply(null, validMers) : 1) * 1.15 || 1;
+    var barW = 28, gap = 14, padT = 10, padB = 26, padR = 34, plotH = 220;
+    var w = data.length * (barW + gap) + gap + padR;
     var h = plotH + padT + padB;
     var scale = plotH / maxRevenue;
+    var merScale = plotH / maxMer;
+    var yBase = padT + plotH;
 
     var bars = '';
+    var points = [];
     data.forEach(function (d, i) {
       var x = gap + i * (barW + gap);
-      var yBase = padT + plotH;
       var marginH = d.margin * scale;
       var adsH = d.ads * scale;
       var otherH = d.other * scale;
@@ -746,17 +779,30 @@
       var yOtherTop = yAdsTop - otherH;
       var label = bucketLabel(d.bucket, level);
       bars +=
-        '<rect x="' + x + '" y="' + yMarginTop.toFixed(1) + '" width="' + barW + '" height="' + marginH.toFixed(1) + '" fill="var(--good)"><title>' + label + ' — Margine: ' + fmtEUR(d.margin) + '</title></rect>' +
-        '<rect x="' + x + '" y="' + yAdsTop.toFixed(1) + '" width="' + barW + '" height="' + adsH.toFixed(1) + '" fill="var(--warning)"><title>' + label + ' — Spese Ads: ' + fmtEUR(d.ads) + '</title></rect>' +
-        '<rect x="' + x + '" y="' + yOtherTop.toFixed(1) + '" width="' + barW + '" height="' + otherH.toFixed(1) + '" fill="var(--ink-muted)"><title>' + label + ' — Altri costi: ' + fmtEUR(d.other) + '</title></rect>' +
+        '<rect x="' + x + '" y="' + yMarginTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, marginH).toFixed(1) + '" fill="var(--good)"><title>' + label + ' — Margine: ' + fmtEUR(d.margin) + '</title></rect>' +
+        '<rect x="' + x + '" y="' + yAdsTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, adsH).toFixed(1) + '" fill="var(--warning)"><title>' + label + ' — Spese Ads: ' + fmtEUR(d.ads) + '</title></rect>' +
+        '<rect x="' + x + '" y="' + yOtherTop.toFixed(1) + '" width="' + barW + '" height="' + Math.max(0, otherH).toFixed(1) + '" fill="var(--ink-muted)"><title>' + label + ' — Altri costi: ' + fmtEUR(d.other) + '</title></rect>' +
         '<text x="' + (x + barW / 2) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="9" fill="var(--ink-muted)">' + label + '</text>';
+      if (d.mer !== null) {
+        points.push({ x: x + barW / 2, y: yBase - d.mer * merScale, mer: d.mer, label: label });
+      }
     });
 
-    var svg = document.getElementById('revenueBarChart');
-    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-    svg.setAttribute('width', w);
-    svg.setAttribute('height', h);
-    svg.innerHTML = bars || '<text x="10" y="20" font-size="12" fill="var(--ink-muted)">Nessun dato nel periodo</text>';
+    var linePath = points.map(function (p, i) { return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ');
+    var lineSvg = points.length > 1 ? '<path d="' + linePath + '" fill="none" stroke="var(--accent)" stroke-width="2"/>' : '';
+    var dotsSvg = points.map(function (p) {
+      return '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3" fill="var(--accent)"><title>' + p.label + ' — MER: ' + p.mer.toFixed(2) + 'x</title></circle>';
+    }).join('');
+
+    var rightAxis = '';
+    for (var t = 0; t <= 3; t++) {
+      var val = maxMer * t / 3;
+      var y = yBase - val * merScale;
+      rightAxis += '<text x="' + (w - 2) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="var(--accent)">' + val.toFixed(1) + 'x</text>';
+    }
+
+    if (!data.length) return '<svg width="200" height="60"><text x="10" y="20" font-size="12" fill="var(--ink-muted)">Nessun dato nel periodo</text></svg>';
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">' + bars + rightAxis + lineSvg + dotsSvg + '</svg>';
   }
 
   function renderAll() {
