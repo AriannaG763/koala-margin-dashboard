@@ -211,6 +211,7 @@
         <button type="button" class="metric-btn active" data-metric="revenue">Revenue</button>
         <button type="button" class="metric-btn" data-metric="budgetMeta">Budget Meta</button>
         <button type="button" class="metric-btn" data-metric="budgetGoogle">Budget Google</button>
+        <button type="button" class="metric-btn" data-metric="budgetTikTok">Budget TikTok</button>
         <button type="button" class="metric-btn" data-metric="margin">Margine di contribuzione</button>
       </div>
       <div class="metric-toggle" id="levelToggle">
@@ -259,6 +260,13 @@
         </div>
       </div>
       <div class="pie-card">
+        <div class="pie-svg-wrap" id="pieBudgetTikTok"></div>
+        <div class="pie-card-body">
+          <div class="pie-card-title">Budget TikTok</div>
+          <div id="legendBudgetTikTok"></div>
+        </div>
+      </div>
+      <div class="pie-card">
         <div class="pie-svg-wrap" id="pieMargin"></div>
         <div class="pie-card-body">
           <div class="pie-card-title">Margine di contribuzione</div>
@@ -290,8 +298,8 @@
 
   <footer>
     Fonti: foglio "Shopify_Daily_Sales_By_Country" (Revenue, Gross Profit, Shipping, Packaging, Commission Fee) ·
-    API Meta Ads (Budget/Meta Ads) · foglio "Influencer Affiliate" (Affiliate Cost) · script Google Ads (Cost, paese = dove si trova l'utente).<br>
-    Margine di contribuzione = Gross Profit − Shipping − Packaging − (Commission Fee × 1,1) − Meta Ads − Google Ads − Affiliate Cost.<br>
+    API Meta Ads (Budget/Meta Ads) · API TikTok Ads (Budget/TikTok Ads) · foglio "Influencer Affiliate" (Affiliate Cost) · script Google Ads (Cost, paese = dove si trova l'utente).<br>
+    Margine di contribuzione = Gross Profit − Shipping − Packaging − (Commission Fee × 1,1) − Meta Ads − Google Ads − TikTok Ads − Affiliate Cost.<br>
     Dati aggregati automaticamente una volta al giorno.
   </footer>
 </div>
@@ -341,7 +349,8 @@
     revenue: { idx: 2, label: 'Revenue' },
     budgetMeta: { idx: 3, label: 'Budget Meta' },
     budgetGoogle: { idx: 4, label: 'Budget Google' },
-    margin: { idx: 5, label: 'Margine di contribuzione' }
+    budgetTikTok: { idx: 5, label: 'Budget TikTok' },
+    margin: { idx: 6, label: 'Margine di contribuzione' }
   };
 
   var DASH = { start: null, end: null, minDate: null, maxDate: null, country: 'ALL', metric: 'revenue', level: 'day' };
@@ -411,7 +420,7 @@
   }
 
   // ---------- Index data by country and by date ----------
-  var byCountry = {}; // code -> array of [date, revenue, budgetMeta, budgetGoogle, margin]
+  var byCountry = {}; // code -> array of [date, revenue, budgetMeta, budgetGoogle, budgetTikTok, margin]
   daily.forEach(function (r) {
     var code = r[1];
     if (!byCountry[code]) { byCountry[code] = []; }
@@ -518,13 +527,13 @@
 
   // ---------- Summary cards ----------
   function renderSummary() {
-    var rev = 0, meta = 0, google = 0, margin = 0;
+    var rev = 0, meta = 0, google = 0, tiktok = 0, margin = 0;
     var codes = DASH.country === 'ALL' ? countryCodes : [DASH.country];
     codes.forEach(function (code) {
       var rows = byCountry[code] || [];
       rows.forEach(function (r) {
         if (r[0] < DASH.start || r[0] > DASH.end) return;
-        rev += r[2]; meta += r[3]; google += r[4]; margin += r[5];
+        rev += r[2]; meta += r[3]; google += r[4]; tiktok += r[5]; margin += r[6];
       });
     });
     var wrap = document.getElementById('summaryRow');
@@ -532,6 +541,7 @@
       '<div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value">' + fmtEUR(rev) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Budget Meta</div><div class="stat-value">' + fmtEUR(meta) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Budget Google</div><div class="stat-value">' + fmtEUR(google) + '</div></div>' +
+      '<div class="stat-card"><div class="stat-label">Budget TikTok</div><div class="stat-value">' + fmtEUR(tiktok) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Margine di contribuzione</div><div class="stat-value' + (margin < 0 ? ' neg' : '') + '">' + fmtEUR(margin) + '</div></div>';
   }
 
@@ -666,6 +676,7 @@
     renderDonut('pieRevenue', 'legendRevenue', METRICS.revenue.idx);
     renderDonut('pieBudgetMeta', 'legendBudgetMeta', METRICS.budgetMeta.idx);
     renderDonut('pieBudgetGoogle', 'legendBudgetGoogle', METRICS.budgetGoogle.idx);
+    renderDonut('pieBudgetTikTok', 'legendBudgetTikTok', METRICS.budgetTikTok.idx);
     renderDonut('pieMargin', 'legendMargin', METRICS.margin.idx);
   }
 
@@ -678,3 +689,4 @@
   renderAll();
 })();
 </script>
+
