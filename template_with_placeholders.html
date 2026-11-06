@@ -844,8 +844,9 @@
         var adsPct = Math.round(d.ads / d.revenue * 100);
         var marginPct = Math.round(d.margin / d.revenue * 100);
         var marginMidY = (yBase + yMarginTop) / 2 + 3;
+        var adsMidY = (yMarginTop + yAdsTop) / 2 + 3;
         pctLabels +=
-          '<text x="' + cx + '" y="' + (yAdsTop - 3).toFixed(1) + '" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)">' + adsPct + '%</text>' +
+          '<text x="' + cx + '" y="' + adsMidY.toFixed(1) + '" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)">' + adsPct + '%</text>' +
           '<text x="' + cx + '" y="' + marginMidY.toFixed(1) + '" text-anchor="middle" font-size="8" font-weight="700" fill="#ffffff">' + marginPct + '%</text>';
       }
 
