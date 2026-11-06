@@ -152,8 +152,8 @@
   .pie-card .pie-svg-wrap { flex: none; }
   .pie-card svg { display: block; }
   .pie-card-body { flex: 1; min-width: 0; }
-  .pie-card-title { font-size: 10px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
-  .legend-row { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 2px 0; }
+  .pie-card-title { font-size: 9px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
+  .legend-row { display: flex; align-items: center; gap: 6px; font-size: 10px; padding: 2px 0; }
   .legend-swatch { width: 7px; height: 7px; border-radius: 2px; flex: none; }
   .legend-name { flex: 1; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .legend-value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
@@ -357,7 +357,7 @@
   var COUNTRY_COLORS = {
     IT: 'var(--bk-it)', DE_AT: 'var(--bk-deat)', ES: 'var(--bk-es)', FR: 'var(--bk-fr)', OTHER: 'var(--bk-other)'
   };
-  var LEGEND_LABELS = { IT: 'Italia', DE_AT: 'DE + AT', ES: 'Spagna', FR: 'Francia', OTHER: 'Altri' };
+  var LEGEND_LABELS = { IT: 'IT', DE_AT: 'DE+AT', ES: 'ES', FR: 'FR', OTHER: 'Altri' };
   function countryName(code) { return COUNTRY_NAMES[code] || code; }
 
   // Row: [date, countryBucket, revenue, budgetMeta, budgetGoogle, margin]
