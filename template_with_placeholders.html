@@ -202,6 +202,9 @@
   #mainTable td.total-col, #mainTable th.total-col { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; border-left: 1px solid var(--border); background: var(--paper); }
   #mainTable td.total-col.neg { color: var(--critical); }
 
+  #monthRecapTable td, #monthRecapTable th { text-align: right; font-variant-numeric: tabular-nums; }
+  #monthRecapTable td.neg { color: var(--critical); }
+
   footer { font-size: 12px; color: var(--ink-muted); text-align: center; padding-top: 8px; line-height: 1.7; }
   footer a { text-decoration: underline; text-underline-offset: 2px; }
 </style>
@@ -265,6 +268,21 @@
 
   <div class="panel">
     <div class="summary-row" id="summaryRow"></div>
+  </div>
+
+  <div class="panel" id="monthRecapPanel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">Obiettivo mensile</div>
+        <div class="panel-note" id="monthRecapNote"></div>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table id="monthRecapTable">
+        <thead><tr id="monthRecapHeadRow"></tr></thead>
+        <tbody><tr id="monthRecapBodyRow"></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="panel">
@@ -408,6 +426,8 @@
   };
 
   var DASH = { start: null, end: null, minDate: null, maxDate: null, country: 'ALL', metric: 'revenue', level: 'day' };
+  // Obiettivi mensili di margine di contribuzione (chiave = bucket mensile 'YYYY-MM')
+  var MARGIN_TARGETS = { '2026-11': 1667 };
   var LEVEL_UNIT_SINGULAR = { day: 'giorno', week: 'settimana', month: 'mese' };
   var LEVEL_UNIT_PLURAL = { day: 'giorni', week: 'settimane', month: 'mesi' };
   var LEVEL_DEMONSTRATIVE = { day: 'quel giorno', week: 'quella settimana', month: 'quel mese' };
@@ -597,6 +617,52 @@
       '<div class="stat-card"><div class="stat-label">Budget Google</div><div class="stat-value">' + fmtEUR(google) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Budget TikTok</div><div class="stat-value">' + fmtEUR(tiktok) + '</div></div>' +
       '<div class="stat-card"><div class="stat-label">Margine di contribuzione</div><div class="stat-value' + (margin < 0 ? ' neg' : '') + '">' + fmtEUR(margin) + '</div></div>';
+  }
+
+  // ---------- Recap obiettivo mensile (mese corrente, dal giorno 1 all'ultimo giorno con dati completi) ----------
+  function daysInMonthKey(monthKey) {
+    var y = parseInt(monthKey.slice(0, 4), 10), m = parseInt(monthKey.slice(5, 7), 10);
+    return new Date(Date.UTC(y, m, 0)).getUTCDate();
+  }
+
+  function renderMonthRecap() {
+    var head = document.getElementById('monthRecapHeadRow');
+    var body = document.getElementById('monthRecapBodyRow');
+    var note = document.getElementById('monthRecapNote');
+    var monthKey = monthKeyStr(DASH.maxDate);
+    var target = MARGIN_TARGETS[monthKey];
+
+    if (!target) {
+      head.innerHTML = '';
+      body.innerHTML = '';
+      note.textContent = 'Nessun obiettivo impostato per ' + bucketLabel(monthKey, 'month') + '.';
+      return;
+    }
+
+    var monthStart = startOfMonthStr(DASH.maxDate);
+    var daysPassed = parseInt(DASH.maxDate.slice(8, 10), 10);
+    var totalDays = daysInMonthKey(monthKey);
+
+    var rev = 0, margin = 0;
+    countryCodes.forEach(function (code) {
+      (byCountry[code] || []).forEach(function (r) {
+        if (r[0] < monthStart || r[0] > DASH.maxDate) return;
+        rev += r[2]; margin += r[6];
+      });
+    });
+
+    var expected = target / totalDays * daysPassed;
+    var diff = margin - expected;
+
+    note.textContent = 'Recap ' + fmtItDate(monthStart) + ' → ' + fmtItDate(DASH.maxDate) + ' (' + daysPassed + ' di ' + totalDays + ' giorni) · obiettivo mensile ' + fmtEUR(target) + ' · obiettivo giornaliero ' + fmtEUR(target / totalDays);
+
+    head.innerHTML =
+      '<th>Revenue totale</th><th>Margine di contribuzione</th><th>Obiettivo a oggi</th><th>Differenza vs obiettivo</th>';
+    body.innerHTML =
+      '<td>' + fmtEUR(rev) + '</td>' +
+      '<td class="' + (margin < 0 ? 'neg' : '') + '">' + fmtEUR(margin) + '</td>' +
+      '<td>' + fmtEUR(expected) + '</td>' +
+      '<td class="' + (diff < 0 ? 'neg' : '') + '">' + (diff >= 0 ? '+' : '') + fmtEUR(diff) + '</td>';
   }
 
   // ---------- Main table ----------
@@ -791,9 +857,6 @@
     return Math.round(n) + ' €';
   }
 
-  // Obiettivi mensili di margine di contribuzione (chiave = bucket mensile 'YYYY-MM')
-  var MARGIN_TARGETS = { '2026-11': 1667 };
-
   function renderOneBarChart(data, level, groupLabel) {
     var maxRevenue = Math.max.apply(null, data.map(function (d) { return d.revenue; })) || 1;
     var validMers = data.map(function (d) { return d.mer; }).filter(function (m) { return m !== null; });
@@ -938,6 +1001,7 @@
 
   function renderAll() {
     renderSummary();
+    renderMonthRecap();
     renderPies();
     renderTable();
     renderRevenueBarChart();
