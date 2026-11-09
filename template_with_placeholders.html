@@ -791,6 +791,9 @@
     return Math.round(n) + ' €';
   }
 
+  // Obiettivi mensili di margine di contribuzione (chiave = bucket mensile 'YYYY-MM')
+  var MARGIN_TARGETS = { '2026-11': 1667 };
+
   function renderOneBarChart(data, level, groupLabel) {
     var maxRevenue = Math.max.apply(null, data.map(function (d) { return d.revenue; })) || 1;
     var validMers = data.map(function (d) { return d.mer; }).filter(function (m) { return m !== null; });
@@ -867,7 +870,22 @@
       return '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3" fill="var(--series-mer)"/>';
     }).join('');
 
-    return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">' + gridlines + bars + pctLabels + lineSvg + dotsSvg + hoverCols + '</svg>';
+    var targetSvg = '';
+    if (groupLabel === 'Tutti i paesi' && level === 'month') {
+      Object.keys(MARGIN_TARGETS).forEach(function (monthKey) {
+        var hasMonth = data.some(function (d) { return d.bucket === monthKey; });
+        if (!hasMonth) return;
+        var targetVal = MARGIN_TARGETS[monthKey];
+        var rawY = yBase - targetVal * scale;
+        var targetY = Math.max(padT, Math.min(yBase, rawY));
+        var monthLabel = bucketLabel(monthKey, 'month');
+        targetSvg +=
+          '<line x1="' + plotLeft + '" x2="' + plotRight + '" y1="' + targetY.toFixed(1) + '" y2="' + targetY.toFixed(1) + '" stroke="var(--series-margin)" stroke-width="1.5" stroke-dasharray="5,3"/>' +
+          '<text x="' + (plotRight - 4) + '" y="' + (targetY - 4).toFixed(1) + '" text-anchor="end" font-size="9" font-weight="700" fill="var(--series-margin)">Obiettivo ' + monthLabel + ': ' + fmtCompactEUR(targetVal) + '</text>';
+      });
+    }
+
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">' + gridlines + bars + pctLabels + targetSvg + lineSvg + dotsSvg + hoverCols + '</svg>';
   }
 
   // ---------- Shared rich tooltip (one instance, reused by every chart via event delegation) ----------
