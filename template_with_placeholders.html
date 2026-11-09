@@ -795,7 +795,7 @@
     var maxRevenue = Math.max.apply(null, data.map(function (d) { return d.revenue; })) || 1;
     var validMers = data.map(function (d) { return d.mer; }).filter(function (m) { return m !== null; });
     var maxMer = (validMers.length ? Math.max.apply(null, validMers) : 1) * 1.15 || 1;
-    var barW = 28, gap = 14, padT = 20, padB = 26, padL = 46, padR = 40, plotH = 210;
+    var barW = 38, gap = 14, padT = 20, padB = 26, padL = 46, padR = 40, plotH = 210;
     var w = data.length * (barW + gap) + gap + padL + padR;
     var h = plotH + padT + padB;
     var scale = plotH / maxRevenue;
@@ -846,8 +846,8 @@
         var marginMidY = (yBase + yMarginTop) / 2 + 3;
         var adsMidY = (yMarginTop + yAdsTop) / 2 + 3;
         pctLabels +=
-          '<text x="' + cx + '" y="' + adsMidY.toFixed(1) + '" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)">' + adsPct + '%</text>' +
-          '<text x="' + cx + '" y="' + marginMidY.toFixed(1) + '" text-anchor="middle" font-size="8" font-weight="700" fill="#ffffff">' + marginPct + '%</text>';
+          '<text x="' + cx + '" y="' + adsMidY.toFixed(1) + '" text-anchor="middle" font-size="10" font-weight="700" fill="var(--ink)">' + adsPct + '%</text>' +
+          '<text x="' + cx + '" y="' + marginMidY.toFixed(1) + '" text-anchor="middle" font-size="10" font-weight="700" fill="#ffffff">' + marginPct + '%</text>';
       }
 
       if (d.mer !== null) {
@@ -886,8 +886,8 @@
         row('var(--ch-meta)', 'Meta Ads', fmtEUR(tip.meta)) +
         row('var(--ch-google)', 'Google Ads', fmtEUR(tip.google)) +
         row('var(--ch-tiktok)', 'TikTok Ads', fmtEUR(tip.tiktok)) +
-        row('var(--series-margin)', 'Margine di contribuzione', fmtEUR(tip.margin)) +
         row('var(--series-other)', 'Altri costi', fmtEUR(tip.other)) +
+        row('var(--series-margin)', 'Margine di contribuzione', fmtEUR(tip.margin)) +
         row('var(--series-mer)', 'MER', tip.mer !== null ? tip.mer.toFixed(2) + 'x' : '—');
       tooltipEl.innerHTML = html;
       tooltipEl.classList.add('visible');
